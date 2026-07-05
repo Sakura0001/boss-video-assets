@@ -9,4 +9,10 @@ __pycache__/
 # Boss recruiting agent runtime data
 boss-recruiting-agent/runtime/*
 !boss-recruiting-agent/runtime/.gitkeep
+
+# Local chat exports and private raw data
+AL.ZIP
+AL.zip
+al.zip
+AL/
 node_modules/

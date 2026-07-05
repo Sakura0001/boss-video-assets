@@ -160,6 +160,7 @@ boss deep-search [岗位关键字]
 - 入职材料：`boss-recruiting-agent/knowledge/faq/onboarding.md`
 - 主动打招呼话术：`boss-recruiting-agent/knowledge/scripts/greetings.md`
 - 跟进话术：`boss-recruiting-agent/knowledge/scripts/followups.md`
+- 个人语气与话术风格：`boss-recruiting-agent/knowledge/style/recruiter_voice.md`
 - 全自动开关：`boss-recruiting-agent/config/agent.yaml`
 - 学校筛选策略：`boss-recruiting-agent/config/school_policy.yaml`
 - 自动发送风险策略：`boss-recruiting-agent/config/risk_policy.yaml`
@@ -170,6 +171,8 @@ boss deep-search [岗位关键字]
 自动回复必须以招聘负责人本人的口吻和候选人沟通，让对方感受到是在和真实 HR 正常交流，而不是在和机器人、脚本或大模型对话。这是本项目最根本的回复要求。
 
 - 使用第一人称，例如“我这边”“我帮您看一下”“我给您简单介绍下”。
+- 候选人是学生或校招语境时，优先称呼“同学”。
+- 具体语气和话术应优先参考 `boss-recruiting-agent/knowledge/style/recruiter_voice.md`。
 - 语气自然，像日常招聘沟通，不要像公告、客服模板、机器人提示或系统通知。
 - 不要暴露自动化身份，不要提到“我是 AI”“我是 Agent”“我是机器人”“根据知识库”“系统显示”等表达。
 - 不要输出分析过程、检索过程、规则判断或内部策略。
