@@ -1,0 +1,134 @@
+# Boss 直聘项目协作参考
+
+本目录用于维护 Boss 直聘招聘自动化相关资料、知识库和后续 Skill/Agent 编排。当前本机已安装 `boss` CLI，可作为自动招聘工具的浏览器自动化入口。
+
+## 已安装工具
+
+`boss` 命令位置：
+
+```bash
+/opt/homebrew/bin/boss
+```
+
+实际指向：
+
+```text
+/opt/homebrew/lib/node_modules/@joohw/boss-cli/dist/cli/index.js
+```
+
+安装包：
+
+```text
+@joohw/boss-cli
+```
+
+该工具是一个 Boss 直聘自动化 CLI，不是 Codex Skill。它基于本机 Chrome/CDP 复用登录态，适合被 Skill 或 Agent 通过子进程调用。
+
+## 常用命令
+
+```bash
+boss help
+```
+
+查看帮助。
+
+```bash
+boss login
+```
+
+打开 Boss 直聘登录页。需要用户在浏览器里自行完成登录。
+
+```bash
+boss list
+boss list --unread
+```
+
+读取聊天列表。`--unread` 只读取未读候选人。
+
+```bash
+boss chat <姓名>
+boss chat <姓名> --strict
+```
+
+打开指定候选人会话。默认包含匹配，`--strict` 为精确匹配。仅适用于已建立联系、能在聊天列表里看到的候选人。
+
+```bash
+boss send --text "您好，请问方便发一下简历吗？"
+boss send -t "您好，请问方便沟通一下这个岗位吗？"
+boss send --text "您好，辛苦发一下附件简历。" --request-resume
+```
+
+向当前已打开的候选人会话发送文本消息。`--request-resume` 会在发送后自动执行“求简历”操作。
+
+```bash
+boss action resume
+boss action not-fit
+boss action remark --remark "候选人已沟通，关注 Java 后端岗位"
+boss action agree-resume
+boss action request-attachment-resume
+boss action history
+boss action wechat
+```
+
+在当前聊天页已打开候选人详情时执行操作。
+
+```bash
+boss positions
+```
+
+读取当前职位列表，包含开放、待开放、已关闭状态。
+
+```bash
+boss jd <岗位名称>
+```
+
+抓取指定职位详情，并缓存为本地同名 Markdown 文件。后续知识库和自动回复应优先引用这些 JD 内容。
+
+```bash
+boss recommend [岗位关键字]
+boss preview <姓名> --job <岗位关键字>
+boss greet <姓名> --job <岗位关键字>
+boss deep-search [岗位关键字]
+```
+
+用于推荐页、简历预览、打招呼和深度搜索。`preview` 会消耗平台在线简历查看次数，`greet` 会消耗打招呼次数，使用前要谨慎确认。
+
+## 建议的 Agent 编排流程
+
+自动招聘问答建议按以下顺序执行：
+
+1. 使用 `boss list --unread` 获取未读候选人。
+2. 对每个候选人使用 `boss chat <姓名>` 打开会话。
+3. 读取当前岗位资料：优先使用 `boss jd <岗位名称>` 生成或更新 JD 缓存。
+4. 从本项目知识库中检索匹配内容，例如岗位职责、薪资范围、工作地点、作息、福利、面试流程、入职要求。
+5. 结合候选人的问题、岗位 JD、知识库答案生成专业 HR 语气回复。
+6. 发送前检查回复是否存在违规承诺、歧视性表达、过度保证或未经确认的信息。
+7. 使用 `boss send --text "<回复内容>"` 发送。
+
+## 回复风格要求
+
+自动回复应保持专业 HR 语气：
+
+- 礼貌、清晰、简洁。
+- 先正面回答候选人的核心问题。
+- 对薪资、录用、编制、远程、加班、福利等敏感事项，只表达已确认信息，不做绝对承诺。
+- 不使用歧视性或不合规表述，例如年龄、性别、婚育、地域等不当筛选。
+- 信息不确定时，应说明“我这边再确认一下”或“以面试沟通和公司最终确认为准”。
+
+## 安全边界
+
+- 不要把 Boss 登录 Cookie、Token、手机号、候选人隐私、简历原文提交到 Git。
+- 不要把 GitHub token、Boss 账号密码或任何认证凭据写入代码、文档或提示词。
+- 不要批量导出或长期保存与招聘目的无关的候选人隐私数据。
+- 发送消息前，应确保内容与招聘沟通相关，且符合平台规则和公司合规要求。
+
+## 后续 Skill 建议
+
+后续可创建一个本地 Codex Skill，例如 `boss-recruiting-qa`，专门封装以下能力：
+
+- 调用 `boss` CLI 读取候选人和岗位信息。
+- 维护招聘知识库。
+- 按岗位、城市、招聘阶段检索问答。
+- 生成专业 HR 回复。
+- 对敏感承诺和不合规表达做发送前检查。
+
