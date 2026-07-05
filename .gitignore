@@ -5,4 +5,8 @@
 __pycache__/
 .pytest_cache/
 .venv/
+
+# Boss recruiting agent runtime data
+boss-recruiting-agent/runtime/*
+!boss-recruiting-agent/runtime/.gitkeep
 node_modules/

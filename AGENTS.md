@@ -2,6 +2,8 @@
 
 本目录用于维护 Boss 直聘招聘自动化相关资料、知识库和后续 Skill/Agent 编排。当前本机已安装 `boss` CLI，可作为自动招聘工具的浏览器自动化入口。本仓库也在 `tools/boss-cli/` 保留了一份可分发副本，方便同事从 GitHub 拉取后本地安装使用。
 
+全自动招聘 Agent 框架位于 `boss-recruiting-agent/`，其中 `config/` 维护自动化开关和风险策略，`knowledge/` 维护公司、岗位、FAQ 和话术，`prompts/` 维护大模型提示词，`workflows/` 维护自动化流程。
+
 ## 已安装工具
 
 `boss` 命令位置：
@@ -130,6 +132,19 @@ boss deep-search [岗位关键字]
 5. 结合候选人的问题、岗位 JD、知识库答案生成专业 HR 语气回复。
 6. 发送前检查回复是否存在违规承诺、歧视性表达、过度保证或未经确认的信息。
 7. 使用 `boss send --text "<回复内容>"` 发送。
+
+## 知识库维护位置
+
+- 公司介绍：`boss-recruiting-agent/knowledge/company.md`
+- 岗位介绍：`boss-recruiting-agent/knowledge/jobs/<岗位名>.md`
+- 薪资福利：`boss-recruiting-agent/knowledge/faq/salary.md`
+- 作息加班：`boss-recruiting-agent/knowledge/faq/worktime.md`
+- 面试流程：`boss-recruiting-agent/knowledge/faq/interview.md`
+- 入职材料：`boss-recruiting-agent/knowledge/faq/onboarding.md`
+- 主动打招呼话术：`boss-recruiting-agent/knowledge/scripts/greetings.md`
+- 跟进话术：`boss-recruiting-agent/knowledge/scripts/followups.md`
+- 全自动开关：`boss-recruiting-agent/config/agent.yaml`
+- 自动发送风险策略：`boss-recruiting-agent/config/risk_policy.yaml`
 
 ## 回复风格要求
 
