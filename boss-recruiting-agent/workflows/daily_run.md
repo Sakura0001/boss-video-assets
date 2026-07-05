@@ -9,9 +9,10 @@
 1. 检查 Boss 登录态。
 2. 读取职位列表：`boss positions`。
 3. 对默认岗位执行主动打招呼流程。
-4. 每隔 `poll_unread_interval_seconds` 秒执行一次自动回复流程。
-5. 达到每日自动打招呼或自动回复上限后停止对应动作。
-6. 输出执行摘要。
+4. 对已触达且有回复的候选人，按 `workflows/candidate_conversion.md` 推进：判断意向、索要简历、发送微信入口、提醒候选人主动添加微信。
+5. 每隔 `poll_unread_interval_seconds` 秒执行一次自动回复流程。
+6. 达到每日自动打招呼或自动回复上限后停止对应动作。
+7. 输出执行摘要。
 
 ## 暂停条件
 
@@ -26,4 +27,3 @@
 - 每日触达上限：`config/agent.yaml`
 - 默认岗位：`config/agent.yaml`
 - 风险策略：`config/risk_policy.yaml`
-

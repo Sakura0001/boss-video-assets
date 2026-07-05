@@ -4,6 +4,8 @@
 
 根据默认岗位或指定岗位，在 Boss 推荐列表中主动触达候选人。
 
+主动打招呼后，后续推进应进入 `workflows/candidate_conversion.md` 中定义的标准候选人转化流程。
+
 ## 输入
 
 - `config/agent.yaml`
@@ -25,7 +27,8 @@
 8. 读取岗位知识和打招呼模板。
 9. 生成候选人打招呼内容。
 10. 如果 `automation.enable_auto_send` 为 `true`，执行 `boss greet <姓名>`。
-11. 记录本次执行摘要，不保存候选人隐私。
+11. 按 `workflows/candidate_conversion.md` 的顺序补充岗位信息：部门和产品方向、岗位工作内容、城市和后续沟通方式。
+12. 记录本次执行摘要，不保存候选人隐私。
 
 ## 人工维护点
 

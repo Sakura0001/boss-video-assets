@@ -133,6 +133,22 @@ boss deep-search [岗位关键字]
 6. 发送前检查回复是否存在违规承诺、歧视性表达、过度保证或未经确认的信息。
 7. 使用 `boss send --text "<回复内容>"` 发送。
 
+## 标准候选人转化流程
+
+本项目的标准全自动招聘流程以“Boss 触达，微信承接”为目标。Agent 执行时应优先遵循 `boss-recruiting-agent/workflows/candidate_conversion.md`。
+
+1. 先识别候选人最终学历学校，并对照 `boss-recruiting-agent/knowledge/schools/target-schools.md`。学校命中后才主动打招呼。
+2. 使用 `boss greet <姓名>` 打招呼。
+3. 打招呼后，按顺序补充 2-3 条岗位信息，每条单独发送，不要合并成长段落。
+4. 如果候选人回复并展示意向，再索要附件简历。
+5. 索要简历优先使用 `boss send --text "方便的话辛苦发我一份附件简历，我帮您进一步看下和数据库方向的匹配度。" --request-resume`，也可在适合时使用 `boss action request-attachment-resume`。
+6. 候选人发送简历后，询问：“同学，收到，我先帮您看一下。您这边是否有意向来我们数据库部门了解一下？如果方便的话，可以加我微信，后续沟通会更及时一些。”
+7. 使用 `boss action wechat` 发送微信交换入口。
+8. 发出微信交换入口后，必须补充：“辛苦您这边主动加我一下哈，我这边如果频繁主动添加同学，微信容易异常。加上后您备注一下姓名和数据库方向，我后续在微信上跟您继续沟通。”
+9. 候选人发来微信、表示已添加，或已明确知道需要主动添加微信后，Boss 对话可以结束，后续转到微信沟通。
+
+不要在候选人没有表现出意向前索要微信。不要由我频繁主动添加候选人微信，避免微信异常。
+
 ## 知识库维护位置
 
 - 公司介绍：`boss-recruiting-agent/knowledge/company.md`
@@ -147,6 +163,7 @@ boss deep-search [岗位关键字]
 - 全自动开关：`boss-recruiting-agent/config/agent.yaml`
 - 学校筛选策略：`boss-recruiting-agent/config/school_policy.yaml`
 - 自动发送风险策略：`boss-recruiting-agent/config/risk_policy.yaml`
+- 候选人转化流程：`boss-recruiting-agent/workflows/candidate_conversion.md`
 
 ## 回复风格要求
 
