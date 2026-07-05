@@ -161,10 +161,22 @@ boss deep-search [岗位关键字]
 - 不要含糊回答成“同时涉及 ICT 和云”“看最终团队再确认”等容易让候选人误解的说法。
 - 不要主动攻击或评价华为云，只需要正面澄清我们部门属于 ICT。
 
+## 投递核心口径
+
+候选人询问“怎么投递”“投哪个岗位”“投递链接是什么”时，必须先读取 `boss-recruiting-agent/knowledge/application/apply-links.md`。
+
+- 投递链接只在 `knowledge/application/apply-links.md` 维护，不要在其他文件重复维护真实链接。
+- 大部分同学优先引导投递“AI 应用工程师”，因为该岗位 HR 较多，后续流程对接和跟进更方便。
+- 对外统一按开发/AI 开发方向沟通，不要主动让同学在开发和测试开发之间做选择。
+- 内部后续可能有开发、测试开发等不同实际方向，但投递时先按推荐岗位入口走。
+- 如果同学主动问测试开发，也先引导他按推荐岗位入口投递；不同岗位入口主要影响笔试题型和分数线。
+- 投递后必须提醒同学把简历编号/简历编码发回来，我这边用于备案和跟踪流程。
+
 ## 知识库维护位置
 
 - 公司介绍：`boss-recruiting-agent/knowledge/company.md`
 - 岗位介绍：`boss-recruiting-agent/knowledge/jobs/<岗位名>.md`
+- 投递链接和岗位选择：`boss-recruiting-agent/knowledge/application/apply-links.md`
 - 目标学校名单：`boss-recruiting-agent/knowledge/schools/target-schools.md`
 - 薪资福利：`boss-recruiting-agent/knowledge/faq/salary.md`
 - 作息加班：`boss-recruiting-agent/knowledge/faq/worktime.md`

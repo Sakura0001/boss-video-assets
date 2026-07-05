@@ -7,15 +7,16 @@
 1. `knowledge/company.md`
 2. `knowledge/schools/target-schools.md`
 3. `knowledge/jobs/default.md`
-4. `knowledge/faq/salary.md`
-5. `knowledge/faq/worktime.md`
-6. `knowledge/faq/interview.md`
-7. `knowledge/faq/onboarding.md`
-8. `knowledge/scripts/greetings.md`
-9. `knowledge/scripts/followups.md`
-10. `config/agent.yaml`
-11. `config/school_policy.yaml`
-12. `config/risk_policy.yaml`
+4. `knowledge/application/apply-links.md`
+5. `knowledge/faq/salary.md`
+6. `knowledge/faq/worktime.md`
+7. `knowledge/faq/interview.md`
+8. `knowledge/faq/onboarding.md`
+9. `knowledge/scripts/greetings.md`
+10. `knowledge/scripts/followups.md`
+11. `config/agent.yaml`
+12. `config/school_policy.yaml`
+13. `config/risk_policy.yaml`
 
 ## 每个文件怎么填
 
@@ -32,6 +33,10 @@ knowledge/jobs/java-backend.md
 knowledge/jobs/sales.md
 knowledge/jobs/hr-specialist.md
 ```
+
+### application/apply-links.md
+
+维护岗位投递链接、默认推荐投递岗位、不同岗位对应的笔试题型和分数线口径。真实投递链接只在这个文件里维护，其他话术文件引用这里，不重复粘贴链接。
 
 ### schools/target-schools.md
 

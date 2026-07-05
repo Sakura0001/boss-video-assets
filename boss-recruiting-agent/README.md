@@ -38,6 +38,8 @@ workflows/
   auto_greet.md              主动打招呼流程
   auto_reply.md              收到回复后的自动回答流程
   daily_run.md               每日自动化流程
+knowledge/application/
+  apply-links.md             投递链接和岗位选择口径
 runtime/
   .gitkeep                   运行态目录占位，不提交隐私数据
 docs/
@@ -50,6 +52,12 @@ docs/
 
 ```text
 knowledge/jobs/<岗位名>.md
+```
+
+投递链接和岗位选择维护在：
+
+```text
+knowledge/application/apply-links.md
 ```
 
 常见问题维护在：
@@ -106,9 +114,10 @@ knowledge/schools/target-schools.md
 6. 轮询 `boss list --unread` 发现候选人回复。
 7. 使用 `boss chat <姓名>` 打开会话。
 8. 根据候选人问题检索 `knowledge/`。
-9. 使用 `prompts/hr_reply.md` 生成专业 HR 回复。
-10. 使用 `config/risk_policy.yaml` 和 `prompts/compliance_check.md` 检查是否允许自动发送。
-11. 通过检查后使用 `boss send --text "<回复内容>"` 自动发送。
+9. 候选人询问投递方式时，优先读取 `knowledge/application/apply-links.md`，默认推荐 AI 应用工程师岗位入口。
+10. 使用 `prompts/hr_reply.md` 生成专业 HR 回复。
+11. 使用 `config/risk_policy.yaml` 和 `prompts/compliance_check.md` 检查是否允许自动发送。
+12. 通过检查后使用 `boss send --text "<回复内容>"` 自动发送。
 
 ## 隐私和提交规则
 
