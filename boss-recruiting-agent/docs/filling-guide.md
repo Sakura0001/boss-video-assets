@@ -5,15 +5,17 @@
 ## 推荐填写顺序
 
 1. `knowledge/company.md`
-2. `knowledge/jobs/default.md`
-3. `knowledge/faq/salary.md`
-4. `knowledge/faq/worktime.md`
-5. `knowledge/faq/interview.md`
-6. `knowledge/faq/onboarding.md`
-7. `knowledge/scripts/greetings.md`
-8. `knowledge/scripts/followups.md`
-9. `config/agent.yaml`
-10. `config/risk_policy.yaml`
+2. `knowledge/schools/target-schools.md`
+3. `knowledge/jobs/default.md`
+4. `knowledge/faq/salary.md`
+5. `knowledge/faq/worktime.md`
+6. `knowledge/faq/interview.md`
+7. `knowledge/faq/onboarding.md`
+8. `knowledge/scripts/greetings.md`
+9. `knowledge/scripts/followups.md`
+10. `config/agent.yaml`
+11. `config/school_policy.yaml`
+12. `config/risk_policy.yaml`
 
 ## 每个文件怎么填
 
@@ -30,6 +32,12 @@ knowledge/jobs/java-backend.md
 knowledge/jobs/sales.md
 knowledge/jobs/hr-specialist.md
 ```
+
+### schools/target-schools.md
+
+填写目标学校名单和常见学校别名。Agent 会在主动打招呼前识别候选人的最终学历学校，并用这个文件判断是否继续触达。
+
+学校名单只作为内部匹配策略使用，不要写入候选人回复话术，也不要把候选人个人信息写入本文件。
 
 ### faq/*.md
 
@@ -54,4 +62,3 @@ knowledge/jobs/hr-specialist.md
 - 不要写候选人隐私。
 - 不要写账号密码、Cookie、Token。
 - 不要写招聘歧视性条件。
-

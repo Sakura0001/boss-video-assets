@@ -15,10 +15,13 @@
 config/
   agent.yaml                 全自动运行总配置
   risk_policy.yaml           自动发送和拦截策略
+  school_policy.yaml         学校筛选策略
 knowledge/
   company.md                 公司介绍、业务、团队、办公地点
   jobs/
     default.md               默认岗位模板
+  schools/
+    target-schools.md        目标学校名单
   faq/
     salary.md                薪资福利类问答
     interview.md             面试流程类问答
@@ -85,24 +88,30 @@ config/agent.yaml
 config/risk_policy.yaml
 ```
 
+目标学校名单维护在：
+
+```text
+knowledge/schools/target-schools.md
+```
+
 ## 全自动运行思路
 
 后续执行器应按以下顺序调用：
 
 1. 读取 `config/agent.yaml` 判断是否启用全自动。
 2. 使用 `boss recommend <岗位>` 或 `boss list --unread` 获取目标候选人。
-3. 使用 `knowledge/scripts/greetings.md` 和岗位知识生成主动打招呼内容。
-4. 使用 `boss greet <姓名>` 主动触达。
-5. 轮询 `boss list --unread` 发现候选人回复。
-6. 使用 `boss chat <姓名>` 打开会话。
-7. 根据候选人问题检索 `knowledge/`。
-8. 使用 `prompts/hr_reply.md` 生成专业 HR 回复。
-9. 使用 `config/risk_policy.yaml` 和 `prompts/compliance_check.md` 检查是否允许自动发送。
-10. 通过检查后使用 `boss send --text "<回复内容>"` 自动发送。
+3. 识别候选人的最终学历学校，并根据 `knowledge/schools/target-schools.md` 判断是否继续触达。
+4. 使用 `knowledge/scripts/greetings.md` 和岗位知识生成主动打招呼内容。
+5. 使用 `boss greet <姓名>` 主动触达。
+6. 轮询 `boss list --unread` 发现候选人回复。
+7. 使用 `boss chat <姓名>` 打开会话。
+8. 根据候选人问题检索 `knowledge/`。
+9. 使用 `prompts/hr_reply.md` 生成专业 HR 回复。
+10. 使用 `config/risk_policy.yaml` 和 `prompts/compliance_check.md` 检查是否允许自动发送。
+11. 通过检查后使用 `boss send --text "<回复内容>"` 自动发送。
 
 ## 隐私和提交规则
 
 - 不要把 Boss 登录态、Cookie、Token、候选人简历、聊天记录提交到 Git。
 - `runtime/` 只允许提交 `.gitkeep`，运行日志和缓存应被忽略。
 - 知识库只维护公司和岗位可公开或可对候选人说明的信息。
-

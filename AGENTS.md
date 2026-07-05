@@ -137,6 +137,7 @@ boss deep-search [岗位关键字]
 
 - 公司介绍：`boss-recruiting-agent/knowledge/company.md`
 - 岗位介绍：`boss-recruiting-agent/knowledge/jobs/<岗位名>.md`
+- 目标学校名单：`boss-recruiting-agent/knowledge/schools/target-schools.md`
 - 薪资福利：`boss-recruiting-agent/knowledge/faq/salary.md`
 - 作息加班：`boss-recruiting-agent/knowledge/faq/worktime.md`
 - 面试流程：`boss-recruiting-agent/knowledge/faq/interview.md`
@@ -144,6 +145,7 @@ boss deep-search [岗位关键字]
 - 主动打招呼话术：`boss-recruiting-agent/knowledge/scripts/greetings.md`
 - 跟进话术：`boss-recruiting-agent/knowledge/scripts/followups.md`
 - 全自动开关：`boss-recruiting-agent/config/agent.yaml`
+- 学校筛选策略：`boss-recruiting-agent/config/school_policy.yaml`
 - 自动发送风险策略：`boss-recruiting-agent/config/risk_policy.yaml`
 
 ## 回复风格要求
