@@ -1,6 +1,6 @@
 # Boss 直聘项目协作参考
 
-本目录用于维护 Boss 直聘招聘自动化相关资料、知识库和后续 Skill/Agent 编排。当前本机已安装 `boss` CLI，可作为自动招聘工具的浏览器自动化入口。
+本目录用于维护 Boss 直聘招聘自动化相关资料、知识库和后续 Skill/Agent 编排。当前本机已安装 `boss` CLI，可作为自动招聘工具的浏览器自动化入口。本仓库也在 `tools/boss-cli/` 保留了一份可分发副本，方便同事从 GitHub 拉取后本地安装使用。
 
 ## 已安装工具
 
@@ -23,6 +23,32 @@
 ```
 
 该工具是一个 Boss 直聘自动化 CLI，不是 Codex Skill。它基于本机 Chrome/CDP 复用登录态，适合被 Skill 或 Agent 通过子进程调用。
+
+## 仓库内置副本
+
+本仓库内置副本位置：
+
+```text
+tools/boss-cli/
+```
+
+同事拉取仓库后，可执行：
+
+```bash
+cd tools/boss-cli
+npm install
+npm install -g .
+boss help
+```
+
+也可以不全局安装，直接运行：
+
+```bash
+cd tools/boss-cli
+node dist/cli/index.js help
+```
+
+仓库不会提交 `node_modules/`。依赖需要在每台机器本地安装。该工具许可证为 GPL-3.0，复制和分发时必须保留 `tools/boss-cli/LICENSE`、`tools/boss-cli/README.md` 和来源信息。
 
 ## 常用命令
 
@@ -131,4 +157,3 @@ boss deep-search [岗位关键字]
 - 按岗位、城市、招聘阶段检索问答。
 - 生成专业 HR 回复。
 - 对敏感承诺和不合规表达做发送前检查。
-
