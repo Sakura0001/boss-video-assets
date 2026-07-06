@@ -111,13 +111,16 @@ knowledge/schools/target-schools.md
 3. 识别候选人的最终学历学校，并根据 `knowledge/schools/target-schools.md` 判断是否继续触达。
 4. 使用 `knowledge/scripts/greetings.md` 和岗位知识生成主动打招呼内容。
 5. 使用 `boss greet <姓名>` 主动触达。
-6. 轮询 `boss list --unread` 发现候选人回复。
-7. 使用 `boss chat <姓名>` 打开会话。
-8. 根据候选人问题检索 `knowledge/`。
-9. 候选人询问投递方式时，优先读取 `knowledge/application/apply-links.md`，默认推荐 AI 应用工程师岗位入口。
-10. 使用 `prompts/hr_reply.md` 生成专业 HR 回复。
-11. 使用 `config/risk_policy.yaml` 和 `prompts/compliance_check.md` 检查是否允许自动发送。
-12. 通过检查后使用 `boss send --text "<回复内容>"` 自动发送。
+6. `boss greet` 后立刻补充真人化介绍和我们这边工作/优势，不直接交换微信。
+7. 轮询 `boss list --unread` 发现候选人回复。
+8. 使用 `boss chat <姓名>` 打开会话。
+9. 根据候选人问题检索 `knowledge/`。
+10. 候选人表现出意向后，先确认是否投递以及是否投递到云软件研发部或合适 ICT 部门。
+11. 候选人询问投递方式时，优先读取 `knowledge/application/apply-links.md`，默认推荐 AI 应用工程师岗位入口。
+12. 只有投递路径需要我们承接或候选人明确希望我跟流程时，才进入微信承接。
+13. 使用 `prompts/hr_reply.md` 生成专业 HR 回复。
+14. 使用 `config/risk_policy.yaml` 和 `prompts/compliance_check.md` 检查是否允许自动发送。
+15. 通过检查后使用 `boss send --text "<回复内容>"` 自动发送。
 
 ## 隐私和提交规则
 
