@@ -23,20 +23,24 @@ export function isBossChatRecommendUrl(url) {
 }
 async function getRecommendFrame(page) {
     await page.waitForSelector('iframe[name="recommendFrame"]', { timeout: 15_000 });
-    const frameByName = page.frames().find((f) => f.name() === 'recommendFrame') ?? null;
-    if (frameByName) {
-        return frameByName;
-    }
-    const frameByUrl = page.frames().find((f) => {
-        try {
-            return f.url().includes('/web/frame/recommend');
+    const start = Date.now();
+    while (Date.now() - start < 15_000) {
+        const frameByName = page.frames().find((f) => f.name() === 'recommendFrame') ?? null;
+        if (frameByName) {
+            return frameByName;
         }
-        catch {
-            return false;
+        const frameByUrl = page.frames().find((f) => {
+            try {
+                return f.url().includes('/web/frame/recommend');
+            }
+            catch {
+                return false;
+            }
+        }) ?? null;
+        if (frameByUrl) {
+            return frameByUrl;
         }
-    }) ?? null;
-    if (frameByUrl) {
-        return frameByUrl;
+        await new Promise((resolve) => setTimeout(resolve, 250));
     }
     throw new Error('已检测到推荐 iframe，但无法获取其页面上下文（recommendFrame）。');
 }
@@ -67,6 +71,7 @@ async function waitForRecommendJobDropdownReady(frame) {
     })()`, { timeout: 6_000 });
 }
 async function waitForRecommendJobSearchResults(frame, keyword) {
+    const kwJson = JSON.stringify(keyword);
     await frame.waitForFunction(`((kw) => {
       const norm = (v) => (v ?? "").replace(/\\s+/g, "").trim().toLowerCase();
       const rows = Array.from(document.querySelectorAll(".job-selecter-options .job-list .job-item"));
@@ -76,14 +81,15 @@ async function waitForRecommendJobSearchResults(frame, keyword) {
         const label = norm(el.querySelector(".label")?.textContent || el.textContent || "");
         return label.includes(norm(kw));
       });
-    })`, { timeout: 8_000 }, keyword);
+    })(${kwJson})`, { timeout: 8_000 });
 }
 async function waitForRecommendJobSelected(frame, expectedLabel) {
+    const labelJson = JSON.stringify(expectedLabel);
     await frame.waitForFunction(`((label) => {
       const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
       const current = norm(document.querySelector(".job-selecter-wrap .ui-dropmenu-label")?.textContent);
       return !!current && current === label;
-    })`, { timeout: 8_000 }, expectedLabel);
+    })(${labelJson})`, { timeout: 8_000 });
     await ensureRecommendFrameReady(frame);
 }
 export async function selectRecommendJob(frame, keyword) {
