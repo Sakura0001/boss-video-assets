@@ -1,0 +1,24 @@
+# 学校筛选策略
+
+policy:
+  enabled: true
+  source_file: "knowledge/schools/target-schools.md"
+  match_field: "final_education_school"
+  match_mode: "allowlist" # allowlist | manual_review
+  require_final_education_match: true
+  allow_unknown_school: false
+  unknown_school_action: "skip_greet" # skip_greet | manual_review
+  matched_school_action: "allow_greet"
+  unmatched_school_action: "skip_greet"
+
+privacy:
+  expose_school_filter_reason_to_candidate: false
+  save_candidate_school_to_git: false
+  save_candidate_profile_snapshot: false
+
+rules:
+  - "Agent 应先识别候选人最终学历对应学校，再判断是否在目标学校名单中。"
+  - "学校在名单中时，才允许进入主动打招呼和后续自动问答流程。"
+  - "学校不在名单中或无法识别时，默认不主动打招呼。"
+  - "不要在候选人沟通中直接说明因学校名单原因筛选或拒绝。"
+  - "名单只作为内部招聘匹配条件，不写入对候选人的回复内容。"

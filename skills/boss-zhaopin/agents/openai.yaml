@@ -1,0 +1,4 @@
+interface:
+  display_name: "Boss 招聘"
+  short_description: "Boss 直聘自动招聘流程、CLI 操作和候选人话术"
+  default_prompt: "Use $boss-zhaopin to screen Boss candidates and run the recruiting conversation flow."

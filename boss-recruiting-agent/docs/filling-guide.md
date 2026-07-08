@@ -36,7 +36,7 @@ knowledge/jobs/hr-specialist.md
 
 ### application/apply-links.md
 
-维护岗位投递链接、默认推荐投递岗位、不同岗位对应的笔试题型和分数线口径。真实投递链接只在这个文件里维护，其他话术文件引用这里，不重复粘贴链接。
+维护投递状态判断和微信承接口径。本项目不再在该文件维护投递链接、真实 URL 或岗位链接表；Boss 侧遇到未投递、编号未给别人或转投意向时，直接交换微信，后续投递细节在微信沟通。
 
 ### schools/target-schools.md
 
