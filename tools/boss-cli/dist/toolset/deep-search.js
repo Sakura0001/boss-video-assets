@@ -697,6 +697,7 @@ async function waitForAiFormJobDropdownReady(page) {
     })()`, { timeout: 6_000 });
 }
 async function waitForAiFormJobSearchResults(page, keyword) {
+    const kwJson = JSON.stringify(keyword);
     await page.waitForFunction(`((kw) => {
       const norm = (v) => (v ?? "").replace(/\\s+/g, "").trim().toLowerCase();
       const rows = Array.from(
@@ -709,14 +710,15 @@ async function waitForAiFormJobSearchResults(page, keyword) {
         const label = norm(el.querySelector(".job-option-text, .label")?.textContent || el.textContent || "");
         return label.includes(norm(kw));
       });
-    })`, { timeout: 8_000 }, keyword);
+    })(${kwJson})`, { timeout: 8_000 });
 }
 async function waitForAiFormJobSelected(page, expectedLabel) {
+    const labelJson = JSON.stringify(expectedLabel);
     await page.waitForFunction(`((label) => {
       const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
       const selected = norm(document.querySelector(".job-dropmenu-select .job-main-text")?.textContent);
       return !!selected && selected === label;
-    })`, { timeout: 8_000 }, expectedLabel);
+    })(${labelJson})`, { timeout: 8_000 });
     await ensureInDeepSearchPage(page);
 }
 export async function selectAiFormJob(page, keyword) {

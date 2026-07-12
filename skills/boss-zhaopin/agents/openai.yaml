@@ -1,4 +1,4 @@
 interface:
-  display_name: "Boss 招聘"
-  short_description: "Boss 直聘自动招聘流程、CLI 操作和候选人话术"
-  default_prompt: "Use $boss-zhaopin to screen Boss candidates and run the recruiting conversation flow."
+  display_name: "Boss 自动招聘"
+  short_description: "2027届数据库候选人自动筛选、沟通、微信交换、跟进与日报"
+  default_prompt: "Use $boss-zhaopin to log in to Boss and run the on-demand 2027 database recruiting workflow."

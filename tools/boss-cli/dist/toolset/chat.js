@@ -14,6 +14,7 @@ function chatRoleTag(from) {
     }
 }
 async function waitForChatHistoryPanelReady(page, selectedTab) {
+    const tabJson = JSON.stringify(selectedTab ?? null);
     await page.waitForFunction(`((tabLabel) => {
       function norm(v) {
         return (v ?? "").replace(/\\s+/g, " ").trim();
@@ -31,7 +32,7 @@ async function waitForChatHistoryPanelReady(page, selectedTab) {
         if (norm(selected?.textContent) !== tabLabel) return false;
       }
       return !!root.querySelector(".record");
-    })`, { timeout: 8_000 }, selectedTab ?? null);
+    })(${tabJson})`, { timeout: 8_000 });
 }
 /**
  * 打开「沟通记录」弹窗，依次读取「同事沟通」「我的沟通」列表，关闭弹窗。
@@ -91,7 +92,9 @@ async function fetchColleagueChatHistorySection(page) {
         }))
         .filter((x) => x.action || x.operat);
     })()`);
-    const clickTab = (label) => page.evaluate(`((lab) => {
+    const clickTab = (label) => {
+        const labelJson = JSON.stringify(label);
+        return page.evaluate(`((lab) => {
         function norm(v) {
           return (v ?? "").replace(/\\s+/g, " ").trim();
         }
@@ -102,7 +105,8 @@ async function fetchColleagueChatHistorySection(page) {
         if (sp && !sp.classList.contains("selected")) {
           sp.click();
         }
-      })`, label);
+      })(${labelJson})`);
+    };
     await clickTab('同事沟通');
     await waitForChatHistoryPanelReady(page, '同事沟通');
     const rowsColleague = await scrapeRows();
@@ -305,19 +309,20 @@ export async function runOpenCandidateChat(page, candidateName, exact = true) {
         if (!targetWrap) {
             throw new Error(`未在聊天列表中找到候选人：${targetName}`);
         }
-        await targetWrap.evaluate(`((el) => {
+        await targetWrap.evaluate((el) => {
       const row = el.querySelector(".geek-item") ?? el;
       row.scrollIntoView({ behavior: "instant", block: "center", inline: "nearest" });
       row.click();
-    })`);
+    });
         let selected = await targetWrap
             .$eval('.geek-item', (el) => el.classList.contains('selected'))
             .catch(() => false);
         try {
+            const nameJson = JSON.stringify(foundName || targetName);
             await page.waitForFunction(`((name) => {
           const text = document.querySelector(".base-info-single-container .name-box")?.textContent ?? "";
           return text.replace(/\\s+/g, " ").trim().includes(name);
-        })`, { timeout: 12_000 }, foundName || targetName);
+        })(${nameJson})`, { timeout: 12_000 });
             await page.waitForFunction(`(() => {
           const list = document.querySelector(".chat-message-list");
           if (!list) return false;

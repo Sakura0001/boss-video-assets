@@ -1,24 +1,25 @@
-# 学校筛选策略
-
 policy:
   enabled: true
-  source_file: "knowledge/schools/target-schools.md"
+  source_file: "references/target_schools.md"
   match_field: "final_education_school"
-  match_mode: "allowlist" # allowlist | manual_review
   require_final_education_match: true
-  allow_unknown_school: false
-  unknown_school_action: "skip_greet" # skip_greet | manual_review
-  matched_school_action: "allow_greet"
-  unmatched_school_action: "skip_greet"
+  graduation_year: 2027
+  allowed_degrees:
+    - "本科"
+    - "研究生"
+    - "硕士"
+    - "博士"
+  major_mode: "stem_only"
+  require_technical_experience: false
+  unknown_profile_action: "no_reply"
+  unmatched_profile_action: "no_reply"
 
 privacy:
-  expose_school_filter_reason_to_candidate: false
-  save_candidate_school_to_git: false
-  save_candidate_profile_snapshot: false
+  expose_filter_reason_to_candidate: false
+  save_profile_to_git: false
 
 rules:
-  - "Agent 应先识别候选人最终学历对应学校，再判断是否在目标学校名单中。"
-  - "学校在名单中时，才允许进入主动打招呼和后续自动问答流程。"
-  - "学校不在名单中或无法识别时，默认不主动打招呼。"
-  - "不要在候选人沟通中直接说明因学校名单原因筛选或拒绝。"
-  - "名单只作为内部招聘匹配条件，不写入对候选人的回复内容。"
+  - "本科生看本科院校，研究生看研究生院校，只判断最终学历学校。"
+  - "专业必须属于理工科，文科专业不回复。"
+  - "不要求技术经历、编程经历或工作经历，可以从零培养。"
+  - "学校、专业、学历、毕业年份任一无法识别时不回复。"

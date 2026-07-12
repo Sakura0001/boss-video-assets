@@ -1,42 +1,13 @@
-# 工作流：主动打招呼
+# 自动打招呼
 
-## 目标
+1. 读取 `agent.yaml`、`school_policy.yaml`、`target_schools.md`、`greetings.md` 和 `automation_runtime.md`。
+2. 查询当日 `greeting-count`，达到 150 时停止。
+3. 使用 `boss recommend <岗位关键字>` 获取候选人。
+4. 只处理资料明确的 2027 届、本科或研究生、目标学校、理工科候选人；不要求技术经历。
+5. 检查长期去重；已联系过的不再打招呼。
+6. 逐个执行 `boss greet "<姓名>" --job <岗位关键字>`，不要使用 shell 循环。
+7. 成功后记录 `greeted` 事件并写入去重索引。
+8. 打开精确会话，依次发送 `greetings.md` 的真人化说明、合并介绍和附件简历请求。
+9. 状态设为 `waiting_resume`，记录最后发送时间。
 
-根据默认岗位或指定岗位，在 Boss 推荐列表中主动触达候选人。
-
-主动打招呼后，后续推进应进入 `workflows/candidate_conversion.md` 中定义的标准候选人转化流程。
-
-## 输入
-
-- `config/agent.yaml`
-- `knowledge/jobs/<岗位名>.md`
-- `knowledge/schools/target-schools.md`
-- `config/school_policy.yaml`
-- `knowledge/scripts/greetings.md`
-- `boss recommend [岗位关键字]`
-
-## 流程
-
-1. 读取 `config/agent.yaml`。
-2. 如果 `automation.enable_auto_greet` 为 `false`，停止执行。
-3. 使用 `boss recommend <岗位关键字>` 获取推荐候选人。
-4. 按 `max_candidates_per_run` 限制处理数量。
-5. 识别候选人的最终学历学校。
-6. 读取 `knowledge/schools/target-schools.md` 和 `config/school_policy.yaml`。
-7. 如果学校在目标名单中，继续处理；如果学校不在名单中或无法识别，默认跳过主动打招呼。
-8. 读取岗位知识和打招呼模板。
-9. 生成候选人打招呼内容。
-10. 如果 `automation.enable_auto_send` 为 `true`，执行 `boss greet <姓名>`。
-11. `boss greet` 之后必须立刻补充一条真人化消息，说明看过候选人背景和岗位方向匹配，避免平台默认招呼语显得过于模板化。
-12. 按 `workflows/candidate_conversion.md` 的顺序继续补充 1 条合并岗位介绍，一次讲清楚部门/产品、岗位工作内容和方向优势；不要拆成两条占用发送机会，也不要继续连发 4-5 条。
-13. 岗位介绍发送完后，主动索要附件简历：`boss send --text "方便的话辛苦发我一份附件简历，我帮你进一步看下和数据库方向的匹配度。" --request-resume`。
-14. 如果候选人先发起附件简历请求，先只发送 `boss send --text "收到同学"`，再执行 `boss action agree-resume`，并用 `boss chat <姓名> --strict` 确认 `简历获取状态: 已获取`。
-15. 记录本次执行摘要，不保存候选人隐私。
-
-## 人工维护点
-
-- 岗位关键词：`config/agent.yaml`
-- 岗位介绍：`knowledge/jobs/`
-- 目标学校名单：`knowledge/schools/target-schools.md`
-- 学校筛选策略：`config/school_policy.yaml`
-- 打招呼话术：`knowledge/scripts/greetings.md`
+任一步失败时停止该候选人后续动作。平台出现验证码或风控时停止整次运行。
