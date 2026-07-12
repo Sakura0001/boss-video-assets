@@ -1,46 +1,39 @@
-# Boss Recruiting Agent 总配置
-
 agent:
-  name: "boss-recruiting-agent"
-  mode: "fully_automatic" # fully_automatic | draft_only
+  name: "boss-zhaopin"
+  mode: "on_demand_automatic"
   language: "zh-CN"
   timezone: "Asia/Shanghai"
 
 boss_cli:
   command: "boss"
-  local_fallback_command: "node tools/boss-cli/dist/cli/index.js"
-  default_job_keyword: "请填写默认岗位关键词"
-  poll_unread_interval_seconds: 300
-  max_candidates_per_run: 20
-  max_auto_greetings_per_day: 50
-  max_auto_replies_per_day: 200
+  default_job_keyword: "数据库研发"
+  max_candidates_per_run: 150
+  max_auto_greetings_per_day: 150
+  max_auto_replies_per_day: 500
 
 automation:
   enable_auto_greet: true
   enable_auto_reply: true
   enable_auto_send: true
+  unread_first: true
   require_knowledge_match: true
   allow_unknown_answer: false
   use_resume_preview: false
-
-reply:
-  tone: "professional_hr"
-  max_length_chars: 300
-  include_next_step: true
-  ask_one_question_when_needed: true
-
-knowledge:
-  company_file: "knowledge/company.md"
-  jobs_dir: "knowledge/jobs"
-  faq_dir: "knowledge/faq"
-  scripts_dir: "knowledge/scripts"
-
-prompts:
-  candidate_intent: "prompts/candidate_intent.md"
-  hr_reply: "prompts/hr_reply.md"
-  compliance_check: "prompts/compliance_check.md"
+  verify_exact_chat_before_send: true
+  stop_on_manual_outgoing_message: true
 
 runtime:
-  directory: "runtime"
-  save_candidate_private_data: false
-  save_sent_replies: false
+  state_db: "/Users/yuyu/.codex/state/boss-zhaopin/state.sqlite3"
+  temporary_state_retention_days: 3
+  dedupe_until: "2027-12-31"
+  followup_interval_hours: 6
+  max_no_reply_followups: 8
+  max_application_status_questions: 2
+  keep_wechat_ledger: true
+  keep_daily_reports: true
+  commit_runtime_data: false
+
+reply:
+  tone: "direct_natural_recruiter"
+  max_length_chars: 300
+  ask_one_question_when_needed: true

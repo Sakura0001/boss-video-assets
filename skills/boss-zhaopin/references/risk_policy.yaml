@@ -1,42 +1,33 @@
-# 自动发送风险策略
-
 policy:
-  default_action: "block" # allow | block
-  allow_auto_send_when:
-    - "候选人问题能在 knowledge/ 中找到明确答案"
-    - "回复不包含录用保证、薪资保证、入职保证"
-    - "回复不涉及年龄、性别、婚育、地域等敏感筛选"
-    - "回复不要求候选人提供与招聘无关的隐私信息"
-    - "回复长度不超过 config.agent.yaml 中的限制"
+  default_action: "block"
+
+  allow_auto_send_categories:
+    - "approved_job_intro"
+    - "approved_opportunity_wording"
+    - "approved_application_status_question"
+    - "approved_transfer_branch"
+    - "approved_wechat_handoff"
+    - "known_company_job_or_faq_answer"
 
   block_auto_send_when:
     - "知识库没有明确答案"
-    - "候选人要求确认 offer、录用、合同、背调、入职时间"
-    - "候选人询问精确薪资、绩效、社保、公积金，但知识库没有明确口径"
-    - "涉及年龄、性别、婚育、民族、宗教、地域、健康状况等敏感问题"
-    - "需要消耗平台权益，例如在线简历预览或大批量打招呼"
-    - "候选人表达投诉、不满、质疑、法律风险或平台举报意向"
-    - "候选人未回复、未表现出意向，或未出现未投递、简历编号未给别人、转投/改投/路由、重新笔试、希望帮忙跟流程等微信承接条件时，准备执行 boss action wechat"
+    - "无法精确打开候选人会话"
+    - "学校、专业、学历或毕业年份不符合或无法识别"
+    - "候选人要求未批准的 offer、录用、合同、背调或入职承诺"
+    - "候选人追问未批准的精确薪资、奖金、社保或公积金"
+    - "涉及年龄、性别、婚育、民族、宗教、地域或健康状况等敏感筛选"
+    - "候选人投诉、要求停止联系、表达法律风险或举报意向"
+    - "平台出现验证码、风控、异常弹窗或动作验证失败"
+    - "检测到用户手动发送了更新的消息"
 
-  blocked_reply_style:
-    message: "这类问题需要人工确认后再回复。"
-    save_draft: true
+  state_change_require_verification:
+    - "agree-resume"
+    - "wechat"
+
+  blocked_action:
+    save_knowledge_gap: true
     send_automatically: false
 
-categories:
-  low_risk_auto_send:
-    - "岗位是否还在招聘"
-    - "工作地点"
-    - "岗位职责"
-    - "任职要求"
-    - "面试流程"
-    - "简历投递方式"
-    - "基础福利"
-  high_risk_manual_review:
-    - "薪资谈判"
-    - "offer 承诺"
-    - "录用概率"
-    - "合同和劳动关系"
-    - "社保公积金精确政策"
-    - "加班强度争议"
-    - "候选人投诉"
+notes:
+  - "批准的机会话术可以自动发送，但不得扩写为一定录用或一定发 offer。"
+  - "用户显式启动自动招人后，无需逐候选人请求发送确认。"
