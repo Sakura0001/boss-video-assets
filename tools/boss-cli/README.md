@@ -103,26 +103,25 @@ boss greet 张三 --job 前端工程师
 
 ---
 
-## 后台浏览器
+## 有头与无头模式
 
-普通业务命令默认不会再把 Chrome 窗口切到前台。登录必须使用可视模式，登录完成后可以切回无头模式：
-
-```bash
-boss browser status
-boss login
-# 完成扫码或验证后
-boss browser restart --headless
-boss list --unread
-```
-
-需要重新登录或处理验证码时：
+有头模式用于登录或处理验证码。浏览器生命周期命令只负责启动 Chrome，`boss login` 才会打开 Boss 直聘页面：
 
 ```bash
 boss browser restart --headful
 boss login
 ```
 
-生命周期命令只会关闭带有有效本地元数据的受管 Chrome。升级前已经运行的 Boss 浏览器会显示为 `unmanaged`，首次使用时需要手动关闭该旧窗口一次，再执行 `boss browser start --headless`。
+用户完成登录并明确确认后，再切换到无头模式并验证登录状态：
+
+```bash
+boss browser restart --headless
+boss list --unread
+```
+
+普通业务命令默认不会再把 Chrome 窗口切到前台。无头模式失去登录态或遇到验证码时，重新执行上面的有头模式流程。
+
+生命周期命令只会关闭带有有效本地元数据的受管 Chrome。升级前已经运行的 Boss 浏览器会显示为 `unmanaged`，首次使用时需要手动关闭该旧窗口一次，再执行上面的有头模式流程。
 
 调试时如需恢复普通命令的窗口激活行为，可设置 `BOSS_BROWSER_FOREGROUND=true`。
 
@@ -160,7 +159,7 @@ boss-cli 基于 CDP 连接本机 Chrome，复用已有登录态，针对 Boss直
 不会。Cookie 和缓存仅存储在本地 `~/.boss-cli/`，CLI 不经过任何第三方服务器。
 
 **如何无头模式运行？**
-运行 `boss browser start --headless` 或 `boss browser restart --headless`。也可以设置环境变量 `BOSS_BROWSER_HEADLESS=true`；新实例默认 headful，便于扫码登录。
+先按“有头与无头模式”一节完成可视登录；用户确认登录完成后，运行 `boss browser restart --headless`。
 
 **如何自定义操作蒙层品牌？**
 设置环境变量 `BOSS_CLI_AGENT_BRAND=你的品牌名`。

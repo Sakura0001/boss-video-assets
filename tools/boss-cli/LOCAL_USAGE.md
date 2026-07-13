@@ -43,18 +43,23 @@ boss login
 
 该命令会打开 Boss 直聘登录页，需要用户在浏览器中自行完成登录。
 
-## 后台浏览器模式
+## 有头与无头模式
+
+有头模式用于登录或处理验证码。浏览器生命周期命令只负责启动 Chrome，`boss login` 才会打开 Boss 直聘页面：
 
 ```bash
-boss browser status
-boss browser start --headless
 boss browser restart --headful
 boss login
-boss browser restart --headless
-boss browser stop
 ```
 
-普通业务命令默认不再把浏览器窗口切到前台。`boss login` 始终使用可视模式；登录完成后运行 `boss browser restart --headless` 即可回到后台。
+用户完成登录并明确确认后，再切换到无头模式并验证登录状态：
+
+```bash
+boss browser restart --headless
+boss list --unread
+```
+
+普通业务命令默认不再把浏览器窗口切到前台。无头模式失去登录态或遇到验证码时，重新执行上面的有头模式流程。
 
 如果 `status` 显示 `unmanaged`，说明固定调试端口上是升级前启动的旧浏览器。生命周期命令不会自动关闭它；手动关闭该旧窗口一次，再启动受管浏览器即可。
 
