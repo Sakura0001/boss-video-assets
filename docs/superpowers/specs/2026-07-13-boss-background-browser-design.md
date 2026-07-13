@@ -87,8 +87,6 @@ Status never starts Chrome and never navigates a page.
 - If the same managed mode is already running, return success without restarting it.
 - If the opposite managed mode is running, return an actionable error directing the caller to `restart`.
 - If the endpoint is unmanaged, refuse to adopt or close it and tell the user to close the legacy Boss browser once.
-- After a successful `headful` start, open and focus the Boss login entry page before reporting success. This also applies when the same managed headful browser is already running, so an empty or unrelated tab is repaired by rerunning `start --headful`.
-- A failed headful navigation is a command failure. Do not report that the browser is ready while it remains on `chrome://newtab/`.
 
 ### Stop
 
@@ -99,8 +97,6 @@ If graceful shutdown times out, report the failure and preserve enough metadata 
 ### Restart
 
 `restart` is `stop` followed by `start` under the existing Boss session lock. It supports explicit `--headless` or `--headful` and fails without starting a second browser if stop did not complete.
-
-After `restart --headful` launches the replacement browser, it follows the same Boss entry-page navigation contract as `start --headful`. Headless lifecycle commands remain process-only and do not navigate.
 
 ## Normal Command Behavior
 
@@ -124,8 +120,6 @@ Login always requires a visible browser.
 2. It opens and focuses the Boss login page, then returns as it does today so the user can complete login.
 3. Browser data remains in the same user data directory, preserving the authenticated profile.
 4. After login, the user validates the session and runs `boss browser restart --headless` to return to background operation.
-
-The headful lifecycle commands and `boss login` share one entry-page navigation helper. This avoids two commands drifting into different visible startup behavior while keeping lifecycle ownership and login-mode transitions separate.
 
 An unmanaged endpoint is never automatically closed by `boss login`; the command returns an actionable migration message instead.
 
@@ -170,10 +164,6 @@ Unit tests cover:
 - CLI mode flag parsing;
 - normal commands not requesting foreground focus;
 - login remaining foreground-only.
-- headful start and restart opening the Boss entry page before reporting success;
-- same-mode headful start repairing a blank tab;
-- headless start and restart performing no page navigation;
-- headful navigation failures propagating as command failures.
 
 An integration-style test uses a temporary directory, random localhost port, and injected fake process/CDP adapters. Automated tests must not open Boss, use the production profile, send messages, or terminate the production browser.
 
