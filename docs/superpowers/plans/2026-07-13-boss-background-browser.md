@@ -325,7 +325,7 @@ Run `status`, idempotent `start --headless`, mode-mismatch `start --headful`, `r
 
 Confirm only the feature branch changed, no runtime metadata/profile files are tracked, no candidate data or credentials exist, and neither the installed CLI nor installed skill changed.
 
-- [ ] **Step 5: Commit plan completion and push branch**
+- [x] **Step 5: Commit plan completion and push branch**
 
 ```bash
 git add docs/superpowers/plans/2026-07-13-boss-background-browser.md
@@ -333,6 +333,6 @@ git commit -m "Complete background browser implementation plan"
 git push origin feature/boss-background-browser
 ```
 
-- [ ] **Step 6: Hand off user validation**
+- [x] **Step 6: Hand off user validation**
 
 Provide the branch path, exact isolated validation commands, known one-time legacy-browser migration requirement, and state clearly that `main`, `/opt/homebrew/bin/boss`, and the installed skill remain unchanged.
