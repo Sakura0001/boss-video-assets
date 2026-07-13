@@ -121,6 +121,8 @@ boss list --unread
 
 普通业务命令默认不会再把 Chrome 窗口切到前台。无头模式失去登录态或遇到验证码时，重新执行上面的有头模式流程。
 
+无论使用有头还是无头模式，调用方执行连续的 Boss 页面业务操作（如 `list`、`chat`、`send`、`action`、`recommend`、`greet`）时，必须串行执行，并在相邻操作之间随机等待 `4–8` 秒。每次重新取随机值，不使用固定间隔；浏览器 `status/start/stop/restart` 生命周期命令不计入该等待。
+
 生命周期命令只会关闭带有有效本地元数据的受管 Chrome。升级前已经运行的 Boss 浏览器会显示为 `unmanaged`，首次使用时需要手动关闭该旧窗口一次，再执行上面的有头模式流程。
 
 调试时如需恢复普通命令的窗口激活行为，可设置 `BOSS_BROWSER_FOREGROUND=true`。
