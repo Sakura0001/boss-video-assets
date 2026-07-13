@@ -40,6 +40,8 @@ Store browser metadata at:
 ~/.boss-cli/.cache/browser-runtime.json
 ```
 
+`BOSS_BROWSER_RUNTIME_FILE` may override this path for isolated testing or advanced multi-instance setups. The normal default remains fixed under `~/.boss-cli/.cache/`.
+
 The file contains only local process data:
 
 ```json
