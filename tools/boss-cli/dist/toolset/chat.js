@@ -243,6 +243,17 @@ async function fetchCandidateSummary(page) {
   })()`));
     return scraped;
 }
+export async function clickChatListRow(targetWrap) {
+    await targetWrap.evaluate((el) => {
+        const row = el.querySelector('.geek-item') ?? el;
+        row.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'nearest' });
+    });
+    const row = await targetWrap.$('.geek-item');
+    if (!row) {
+        throw new Error('候选人列表项缺少 .geek-item，无法点击。');
+    }
+    await row.click();
+}
 export async function runOpenCandidateChat(page, candidateName, exact = true) {
     const targetName = candidateName.trim();
     try {
@@ -305,11 +316,7 @@ export async function runOpenCandidateChat(page, candidateName, exact = true) {
         if (!targetWrap) {
             throw new Error(`未在聊天列表中找到候选人：${targetName}`);
         }
-        await targetWrap.evaluate(`((el) => {
-      const row = el.querySelector(".geek-item") ?? el;
-      row.scrollIntoView({ behavior: "instant", block: "center", inline: "nearest" });
-      row.click();
-    })`);
+        await clickChatListRow(targetWrap);
         let selected = await targetWrap
             .$eval('.geek-item', (el) => el.classList.contains('selected'))
             .catch(() => false);
