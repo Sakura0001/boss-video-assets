@@ -1,4 +1,5 @@
-import { detachBrowserSession, disconnectBrowserSession, ensureAndGetBrowser, ensureBrowserSession, getBrowserRef, getPageRef, setSessionPage, showAgentOperatingIndicator, wasLastChromeLaunchHeadless, } from '../browser/index.js';
+import { detachBrowserSession, ensureAndGetBrowser, ensureBrowserSession, getBrowserRef, getBrowserStatusUnlocked, getPageRef, restartBrowserUnlocked, setSessionPage, showAgentOperatingIndicator, startBrowserUnlocked, } from '../browser/index.js';
+import { withBossSessionLock } from '../common/boss_session_lock.js';
 const BOSS_LOGIN_URL = 'https://www.zhipin.com/web/user/?ka=header-login';
 /** 设为 `1` / `true` 时不注入操作蒙层（与 {@link withBossSessionPage} 一致）。 */
 const SKIP_AGENT_OPERATING_OVERLAY = process.env.BOSS_CLI_NO_AGENT_OVERLAY === '1' ||
@@ -27,6 +28,27 @@ async function pickExistingPage(browser) {
     });
     return nonBlank ?? null;
 }
+function effectiveState(status) {
+    return status.state === 'stale' ? status.effectiveState : status.state;
+}
+export async function ensureHeadfulBrowserForLogin(options = {}) {
+    const controllerOptions = options.controllerOptions ?? {};
+    const getStatus = options.deps?.getStatus ?? (() => getBrowserStatusUnlocked(controllerOptions));
+    const start = options.deps?.start ?? ((mode) => startBrowserUnlocked(mode, controllerOptions));
+    const restart = options.deps?.restart ?? ((mode) => restartBrowserUnlocked(mode, controllerOptions));
+    const status = await getStatus();
+    const state = effectiveState(status);
+    if (state === 'unmanaged') {
+        throw new Error('Boss browser endpoint is unmanaged. Close the legacy Boss browser once before running boss login.');
+    }
+    if (state === 'running') {
+        if (status.runtime.mode === 'headful') {
+            return { action: 'already-headful', runtime: status.runtime };
+        }
+        return restart('headful');
+    }
+    return start('headful');
+}
 /**
  * 登录（手动）：只负责打开 Boss 登录页，让用户在浏览器中自行完成登录。
  * 不做登录态校验/等待/超时判断；成功与否由后续命令自行体现。
@@ -34,51 +56,42 @@ async function pickExistingPage(browser) {
 export async function runLogin() {
     // 登录必须可见：即使之前已启动 headless 会话，也需要重启为 headful。
     process.env.BOSS_BROWSER_HEADLESS = 'false';
-    const existing = getBrowserRef();
-    try {
-        const args = existing?.process?.()?.spawnargs ?? [];
-        const isHeadless = wasLastChromeLaunchHeadless() ||
-            args.some((a) => typeof a === 'string' && a.startsWith('--headless'));
-        if (existing?.connected && isHeadless) {
-            await disconnectBrowserSession().catch(() => { });
+    return withBossSessionLock(async () => {
+        await ensureHeadfulBrowserForLogin();
+        let browser = null;
+        try {
+            browser = (await ensureAndGetBrowser()) ?? (getBrowserRef() ?? null);
+            if (!browser) {
+                await ensureBrowserSession();
+                browser = getBrowserRef() ?? null;
+            }
         }
-    }
-    catch {
-        // ignore
-    }
-    let browser = null;
-    try {
-        browser = (await ensureAndGetBrowser()) ?? (getBrowserRef() ?? null);
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            throw new Error(`连接浏览器失败：${msg}`);
+        }
         if (!browser) {
-            await ensureBrowserSession();
-            browser = getBrowserRef() ?? null;
+            throw new Error('无法获取浏览器实例，登录失败。');
         }
-    }
-    catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        throw new Error(`连接浏览器失败：${msg}`);
-    }
-    if (!browser) {
-        throw new Error('无法获取浏览器实例，登录失败。');
-    }
-    let page = getPageRef() ?? null;
-    if (!page || page.isClosed()) {
-        page = (await pickExistingPage(browser)) ?? (await browser.newPage());
-    }
-    setSessionPage(page);
-    await page.bringToFront();
-    await page.goto(BOSS_LOGIN_URL, { waitUntil: 'load', timeout: 60_000 });
-    if (!SKIP_AGENT_OPERATING_OVERLAY) {
-        await showAgentOperatingIndicator(page).catch(() => {
-            /* 注入失败不阻断登录 */
-        });
-    }
-    await detachBrowserSession();
-    // 不做任何登录校验：只把浏览器打开到登录页；立即断开 CDP，CLI 不与浏览器进程长期绑定。
-    return [
-        `已在浏览器中打开 Boss 登录页：${BOSS_LOGIN_URL}`,
-        '本命令已同步结束并立即返回，CLI 不会等待 / 轮询 / 校验登录结果。',
-        'Agent调用方：把控制权交还给人类，不要在这一步自行 sleep / poll / retry',
-    ].join('\n');
+        let page = getPageRef() ?? null;
+        if (!page || page.isClosed()) {
+            page = (await pickExistingPage(browser)) ?? (await browser.newPage());
+        }
+        setSessionPage(page);
+        await page.bringToFront();
+        await page.goto(BOSS_LOGIN_URL, { waitUntil: 'load', timeout: 60_000 });
+        if (!SKIP_AGENT_OPERATING_OVERLAY) {
+            await showAgentOperatingIndicator(page).catch(() => {
+                /* 注入失败不阻断登录 */
+            });
+        }
+        await detachBrowserSession();
+        // 不做任何登录校验：只把浏览器打开到登录页；立即断开 CDP，CLI 不与浏览器进程长期绑定。
+        return [
+            `已在浏览器中打开 Boss 登录页：${BOSS_LOGIN_URL}`,
+            '本命令已同步结束并立即返回，CLI 不会等待 / 轮询 / 校验登录结果。',
+            'Agent调用方：把控制权交还给人类，不要在这一步自行 sleep / poll / retry',
+        ].join('\n');
+    });
 }
 //# sourceMappingURL=login.js.map

@@ -9,6 +9,10 @@ const SHOULD_DISABLE_JS = process.env.BOSS_BROWSER_DISABLE_JS === 'true' || proc
 /** 设为 `1` / `true` 时不注入顶栏滚动提示（调试或截图对比用）。 */
 const SKIP_AGENT_OPERATING_OVERLAY = process.env.BOSS_CLI_NO_AGENT_OVERLAY === '1' ||
     process.env.BOSS_CLI_NO_AGENT_OVERLAY === 'true';
+export function shouldBringBossPageToFront(env = process.env) {
+    const value = String(env.BOSS_BROWSER_FOREGROUND ?? '').trim().toLowerCase();
+    return value === '1' || value === 'true';
+}
 /** Boss 为 SPA：`load` 后侧栏可能尚未挂载，需单独等待 `.menu-list` 出现 */
 const MENU_LIST_MOUNT_TIMEOUT_MS = 30_000;
 async function pickExistingPage(browser) {
@@ -115,7 +119,9 @@ export async function withBossSessionPage(callback) {
                     page = (await pickExistingPage(browser)) ?? (await browser.newPage());
                 }
                 setSessionPage(page);
-                await page.bringToFront();
+                if (shouldBringBossPageToFront()) {
+                    await page.bringToFront();
+                }
                 await installBossPageGuards(page);
                 await ensureBossChatShellUrlBeforeMenuList(page);
                 if (SHOULD_DISABLE_JS) {

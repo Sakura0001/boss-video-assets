@@ -164,7 +164,7 @@ git commit -m "Add managed browser lifecycle controller"
 - Create: `tools/boss-cli/test/browser_focus.test.js`
 - Create: `tools/boss-cli/test/login_mode.test.js`
 
-- [ ] **Step 1: Add failing focus tests**
+- [x] **Step 1: Add failing focus tests**
 
 Extract and test:
 
@@ -176,17 +176,17 @@ export function shouldBringBossPageToFront(env = process.env) {
 
 Assert default false and explicit true. Add an injected login-mode transition test proving managed headless becomes headful while unmanaged endpoints fail safely.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `node --test test/browser_focus.test.js test/login_mode.test.js`
 
 Expected: FAIL because focus policy and login transition helpers do not exist.
 
-- [ ] **Step 3: Remove unconditional normal focus activation**
+- [x] **Step 3: Remove unconditional normal focus activation**
 
 Call `page.bringToFront()` only when `shouldBringBossPageToFront()` is true. Keep login's explicit `bringToFront()`.
 
-- [ ] **Step 4: Make login lifecycle-aware**
+- [x] **Step 4: Make login lifecycle-aware**
 
 Under one Boss session lock:
 
@@ -199,13 +199,13 @@ Under one Boss session lock:
 
 Expose a small injected `ensureHeadfulBrowserForLogin` helper for tests without launching Chrome.
 
-- [ ] **Step 5: Verify GREEN**
+- [x] **Step 5: Verify GREEN**
 
 Run: `npm test`
 
 Expected: all tests pass without opening Chrome.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tools/boss-cli/dist/common/boss_session_page.js tools/boss-cli/dist/toolset/login.js tools/boss-cli/dist/toolset/login.d.ts tools/boss-cli/test/browser_focus.test.js tools/boss-cli/test/login_mode.test.js
