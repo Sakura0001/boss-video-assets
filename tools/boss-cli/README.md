@@ -160,7 +160,7 @@ boss-cli 基于 CDP 连接本机 Chrome，复用已有登录态，针对 Boss直
 不会。Cookie 和缓存仅存储在本地 `~/.boss-cli/`，CLI 不经过任何第三方服务器。
 
 **如何无头模式运行？**
-设置环境变量 `BOSS_BROWSER_HEADLESS=true`（默认 headful，便于扫码登录）。
+运行 `boss browser start --headless` 或 `boss browser restart --headless`。也可以设置环境变量 `BOSS_BROWSER_HEADLESS=true`；新实例默认 headful，便于扫码登录。
 
 **如何自定义操作蒙层品牌？**
 设置环境变量 `BOSS_CLI_AGENT_BRAND=你的品牌名`。

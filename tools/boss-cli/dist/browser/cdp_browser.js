@@ -32,31 +32,6 @@ export function clearSpawnedChromeProcessRef() {
 export function wasLastChromeLaunchHeadless() {
     return lastChromeLaunchHeadless;
 }
-/**
- * 探测固定调试端口上是否已有在跑的 Chrome：直接命中 `/json/version` 拿当前
- * `webSocketDebuggerUrl`，避免依赖 `DevToolsActivePort` 这种二级状态文件
- * （可能被陈旧/清理/路径 UUID 漂移影响）。命中即可复用，未命中表示需要 spawn。
- */
-async function probeRemoteDebuggingWsEndpoint(port, timeoutMs) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-    try {
-        const res = await fetch(`http://127.0.0.1:${port}/json/version`, {
-            signal: ctrl.signal,
-        });
-        if (!res.ok)
-            return undefined;
-        const data = (await res.json());
-        const ws = data.webSocketDebuggerUrl;
-        return typeof ws === 'string' && ws.length > 0 ? ws : undefined;
-    }
-    catch {
-        return undefined;
-    }
-    finally {
-        clearTimeout(timer);
-    }
-}
 function waitForDevToolsWebSocketUrl(proc, userDataDir, timeoutMs) {
     const streams = [proc.stdout, proc.stderr].filter((s) => s != null);
     if (streams.length === 0) {
@@ -197,6 +172,45 @@ function launchViewportFromEnv() {
     }
     return defaultViewportFromEnv();
 }
+export function resolveRequestedBrowserMode(options = {}, env = process.env) {
+    if (typeof options.headless === 'boolean') {
+        return options.headless ? 'headless' : 'headful';
+    }
+    const raw = env.BOSS_BROWSER_HEADLESS;
+    if (raw === undefined || String(raw).trim() === '') {
+        return undefined;
+    }
+    const value = String(raw).trim().toLowerCase();
+    return value === '1' || value === 'true' || value === 'yes' || value === 'y'
+        ? 'headless'
+        : 'headful';
+}
+export function detachSpawnedBrowserProcess(proc) {
+    for (const stream of [proc.stdout, proc.stderr]) {
+        if (!stream)
+            continue;
+        try {
+            stream.resume();
+        }
+        catch {
+            /* ignore */
+        }
+        try {
+            if (typeof stream.unref === 'function') {
+                stream.unref();
+            }
+        }
+        catch {
+            /* ignore */
+        }
+    }
+    try {
+        proc.unref();
+    }
+    catch {
+        /* ignore */
+    }
+}
 function resolveLaunchSettings(options = {}) {
     const executablePath = options.executablePath?.trim() ||
         process.env.CHROME_PATH?.trim() ||
@@ -211,7 +225,8 @@ function resolveLaunchSettings(options = {}) {
     if (!executablePath) {
         throw new Error('未找到本机 Chrome/Edge：请设置 CHROME_PATH / PUPPETEER_EXECUTABLE_PATH（可执行文件路径）。');
     }
-    const headless = options.headless ?? process.env.BOSS_BROWSER_HEADLESS === 'true';
+    const requestedMode = resolveRequestedBrowserMode(options);
+    const headless = requestedMode === 'headless';
     const allowAllCors = options.allowAllCors ?? process.env.BOSS_BROWSER_ALLOW_ALL_CORS === 'true';
     const disableGpu = process.env.BOSS_BROWSER_DISABLE_GPU === 'true';
     const remoteDebuggingPort = options.remoteDebuggingPort ?? REMOTE_DEBUGGING_PORT;
@@ -221,6 +236,7 @@ function resolveLaunchSettings(options = {}) {
         userDataDir,
         profileDirectory,
         headless,
+        requestedMode,
         allowAllCors,
         disableGpu,
         remoteDebuggingPort,
@@ -278,21 +294,9 @@ export async function launchManagedBrowser(options = {}) {
         clearSpawnedChromeProcessRef();
         throw e;
     }
-    try {
-        proc.stdout?.resume();
-        proc.stderr?.resume();
-    }
-    catch {
-        /* ignore */
-    }
     /** 单例移交时子进程已退出，无句柄可 unref；仅在本进程真正拉起 Chrome 时 unref，避免拖住 Node 退出。 */
     if (proc.exitCode === null && proc.signalCode === null) {
-        try {
-            proc.unref();
-        }
-        catch {
-            /* ignore */
-        }
+        detachSpawnedBrowserProcess(proc);
     }
     else {
         clearSpawnedChromeProcessRef();
@@ -341,9 +345,9 @@ export async function connectBrowser(options = {}) {
         port: settings.remoteDebuggingPort,
         userDataDir: path.resolve(settings.userDataDir),
     });
-    const requestedMode = settings.headless ? 'headless' : 'headful';
+    const requestedMode = settings.requestedMode;
     if (status.state === 'running') {
-        if (status.runtime.mode !== requestedMode) {
+        if (requestedMode && status.runtime.mode !== requestedMode) {
             throw new Error(`受管 Boss 浏览器正在以 ${status.runtime.mode} 模式运行。请先执行 boss browser restart --${requestedMode}。`);
         }
         lastChromeLaunchHeadless = status.runtime.mode === 'headless';

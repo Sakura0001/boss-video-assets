@@ -104,11 +104,13 @@ Normal commands continue to use the configured CDP port and persistent user data
 
 - If no browser exists, they preserve current behavior and launch according to `BOSS_BROWSER_HEADLESS`.
 - A newly launched process writes managed metadata.
-- If a managed browser is running in a different mode from the requested environment, fail with an instruction to run `boss browser restart` instead of silently reusing it.
+- If `BOSS_BROWSER_HEADLESS` or an API option explicitly requests a mode and a managed browser is running in the other mode, fail with an instruction to run `boss browser restart` instead of silently reusing it.
+- If no mode is explicitly requested, reuse the current managed mode. This lets `boss browser start --headless` be followed by ordinary `boss` commands without exporting an environment variable.
 - If a legacy unmanaged endpoint exists, preserve compatibility by allowing ordinary commands to connect, but lifecycle commands must not stop it. This avoids breaking current users while keeping destructive operations ownership-safe.
 - Ordinary commands do not call `page.bringToFront()` by default.
 - `BOSS_BROWSER_FOREGROUND=true` restores focus activation for debugging.
 - `boss login` remains visible and may call `bringToFront()`.
+- After Chrome is ready, the launcher unreferences the child process and both output streams so one-shot CLI commands return immediately while Chrome remains alive.
 
 ## Login Flow
 

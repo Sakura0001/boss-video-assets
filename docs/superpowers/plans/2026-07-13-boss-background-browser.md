@@ -292,7 +292,7 @@ git commit -m "Expose background browser lifecycle commands"
 **Files:**
 - Modify: `docs/superpowers/plans/2026-07-13-boss-background-browser.md`
 
-- [ ] **Step 1: Run full non-live verification**
+- [x] **Step 1: Run full non-live verification**
 
 Run:
 
@@ -304,7 +304,7 @@ git diff --check
 
 Expected: all tests pass and no whitespace errors.
 
-- [ ] **Step 2: Start a disposable managed headless browser**
+- [x] **Step 2: Start a disposable managed headless browser**
 
 Use a temporary user data directory and nonproduction port:
 
@@ -317,11 +317,11 @@ node dist/cli/index.js browser start --headless
 
 Do not navigate to Boss or run a recruiting command.
 
-- [ ] **Step 3: Verify lifecycle and cleanup**
+- [x] **Step 3: Verify lifecycle and cleanup**
 
 Run `status`, idempotent `start --headless`, mode-mismatch `start --headful`, `restart --headful`, and `stop` against the same disposable configuration. Confirm the endpoint closes and no Chrome process remains on port `53571`.
 
-- [ ] **Step 4: Review scope and private data**
+- [x] **Step 4: Review scope and private data**
 
 Confirm only the feature branch changed, no runtime metadata/profile files are tracked, no candidate data or credentials exist, and neither the installed CLI nor installed skill changed.
 

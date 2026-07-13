@@ -14,20 +14,20 @@ class CliError extends Error {
         this.name = 'CliError';
     }
 }
-function envTruthy(name) {
-    const v = (process.env[name] ?? '').trim().toLowerCase();
+/** 未设置时不覆盖受管实例模式；新启动仍默认有头。 */
+function shouldRunHeadless(env = process.env) {
+    const v = (env.BOSS_BROWSER_HEADLESS ?? '').trim().toLowerCase();
     return v === '1' || v === 'true' || v === 'yes' || v === 'y';
 }
-/** 默认有头；仅当环境变量为真时启用无头（与 `connectBrowser` 读取的 `BOSS_BROWSER_HEADLESS` 一致）。 */
-function shouldRunHeadless() {
-    return envTruthy('BOSS_BROWSER_HEADLESS');
-}
-function configureHeadlessForCommand(cmd) {
+export function configureHeadlessForCommand(cmd, env = process.env) {
     if (cmd === 'login') {
-        process.env.BOSS_BROWSER_HEADLESS = 'false';
+        env.BOSS_BROWSER_HEADLESS = 'false';
         return;
     }
-    process.env.BOSS_BROWSER_HEADLESS = shouldRunHeadless() ? 'true' : 'false';
+    if (env.BOSS_BROWSER_HEADLESS === undefined || env.BOSS_BROWSER_HEADLESS.trim() === '') {
+        return;
+    }
+    env.BOSS_BROWSER_HEADLESS = shouldRunHeadless(env) ? 'true' : 'false';
 }
 /**
  * 一次性命令结束后：detach CDP，不关浏览器窗口。

@@ -48,6 +48,12 @@ export declare function defaultViewportFromEnv(): {
     width: number;
     height: number;
 };
+export declare function resolveRequestedBrowserMode(options?: ConnectBrowserOptions, env?: Record<string, string | undefined>): 'headless' | 'headful' | undefined;
+export declare function detachSpawnedBrowserProcess(proc: {
+    stdout?: { resume(): void; unref?(): void } | null;
+    stderr?: { resume(): void; unref?(): void } | null;
+    unref(): void;
+}): void;
 export declare function launchManagedBrowser(options?: ConnectBrowserOptions): Promise<{
     browser: Browser;
     runtime: import('./browser_runtime.js').BrowserRuntime;
