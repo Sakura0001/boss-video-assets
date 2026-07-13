@@ -225,7 +225,7 @@ git commit -m "Keep normal browser operations in background"
 - Modify: `tools/boss-cli/README.md`
 - Modify: `tools/boss-cli/LOCAL_USAGE.md`
 
-- [ ] **Step 1: Add failing CLI parser tests**
+- [x] **Step 1: Add failing CLI parser tests**
 
 Export a pure parser and test valid and invalid forms:
 
@@ -238,17 +238,17 @@ parseBrowserCommand(['stop']);
 
 Conflicting flags, unsupported options, and extra positional arguments must throw before controller invocation.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `node --test test/browser_cli.test.js`
 
 Expected: FAIL because `parseBrowserCommand` is missing.
 
-- [ ] **Step 3: Implement CLI toolset and routing**
+- [x] **Step 3: Implement CLI toolset and routing**
 
 Add help entries and route `boss browser ...` through `implBrowserCommand`. Format concise status text with no WebSocket URL or sensitive browser data.
 
-- [ ] **Step 4: Document migration and usage**
+- [x] **Step 4: Document migration and usage**
 
 Document:
 
@@ -262,7 +262,7 @@ boss browser restart --headless
 
 Explain that an old unowned process must be closed once before lifecycle management begins.
 
-- [ ] **Step 5: Verify GREEN and syntax**
+- [x] **Step 5: Verify GREEN and syntax**
 
 Run:
 
@@ -280,7 +280,7 @@ node dist/cli/index.js help
 
 Expected: tests pass, syntax checks pass, and help lists browser commands.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tools/boss-cli/dist tools/boss-cli/test tools/boss-cli/README.md tools/boss-cli/LOCAL_USAGE.md

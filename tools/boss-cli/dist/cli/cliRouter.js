@@ -5,7 +5,7 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { detachBrowserSession } from '../browser/index.js';
-import { implChatAction, implLogin, implListCandidates, implListUnreadCandidates, implListPositions, implListPositionsWithOptions, implOpenChat, implRecommend, implPreview, implRecommendGreet, implSetBaiduCredentials, implBossSearch, implSendMessage, } from '../toolset/index.js';
+import { implBrowserCommand, implChatAction, implLogin, implListCandidates, implListUnreadCandidates, implListPositions, implListPositionsWithOptions, implOpenChat, implRecommend, implPreview, implRecommendGreet, implSetBaiduCredentials, implBossSearch, implSendMessage, } from '../toolset/index.js';
 import { printBossInteractiveBanner } from './banner.js';
 import { printPackageUpdateNoticeIfDue, printVersionInfo, runPackageUpdate, } from './version.js';
 class CliError extends Error {
@@ -113,6 +113,14 @@ function printHelp() {
       使用 npm 安装最新版 boss-cli
   boss login
       打开登录页（需要用户在浏览器中自行完成登录，这个命令会直接返回）
+  boss browser status
+      查看受管 Boss 浏览器状态，不启动浏览器、不访问页面
+  boss browser start [--headless|--headful]
+      启动受管浏览器；未指定模式时读取 BOSS_BROWSER_HEADLESS
+  boss browser stop
+      仅停止经元数据验证属于 boss-cli 的受管浏览器
+  boss browser restart [--headless|--headful]
+      在有头/无头模式之间显式切换
   boss list [--unread]
       读取「全部」聊天列表候选人；--unread 仅显示未读（角标>0）
   boss chat <姓名> [--strict]
@@ -192,6 +200,29 @@ function parseOpts(argv) {
     }
     return { rest, flags, opts };
 }
+export function parseBrowserCommand(argv) {
+    const { rest, flags, opts } = parseOpts(argv);
+    const action = rest[0];
+    const usage = '❌ 用法: browser <status|start|stop|restart> [--headless|--headful]';
+    if (!['status', 'start', 'stop', 'restart'].includes(action ?? '') || rest.length !== 1) {
+        die(usage);
+    }
+    if (Object.keys(opts).length > 0) {
+        die(usage);
+    }
+    const unsupported = Array.from(flags).filter((flag) => flag !== 'headless' && flag !== 'headful');
+    if (unsupported.length > 0) {
+        die(usage);
+    }
+    if (flags.has('headless') && flags.has('headful')) {
+        die('❌ --headless 与 --headful 冲突，只能选择一种模式。');
+    }
+    const mode = flags.has('headless') ? 'headless' : flags.has('headful') ? 'headful' : undefined;
+    if ((action === 'status' || action === 'stop') && mode) {
+        die(usage);
+    }
+    return mode ? { action, mode } : { action };
+}
 function printStdout(text) {
     const t = text.trimEnd();
     if (t.length > 0) {
@@ -237,6 +268,9 @@ export async function executeCommand(argv) {
             die('❌ 用法: _baidu-keys --api-key <KEY> --secret-key <SECRET>\n    或: _baidu-keys <KEY> <SECRET>（本命令不在 help 中列出）');
         }
         return implSetBaiduCredentials(apiKey, secretKey);
+    }
+    if (cmd === 'browser') {
+        return implBrowserCommand(parseBrowserCommand(tail));
     }
     if (cmd === 'login') {
         return implLogin();

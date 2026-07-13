@@ -10,6 +10,7 @@ import { runBossSearch, runBossSearchSet } from './deep-search.js';
 import { runRecommend } from './recommend.js';
 import { runPreview } from './preview.js';
 import { runRecommendGreet } from './greet.js';
+import { runBrowserCommand } from './browser.js';
 export async function implLogin() {
     return runLogin();
 }
@@ -54,6 +55,9 @@ export async function implPreview(opts) {
 }
 export async function implRecommendGreet(opts) {
     return runRecommendGreet(opts);
+}
+export async function implBrowserCommand(command) {
+    return runBrowserCommand(command);
 }
 export { implSetBaiduCredentials } from './baidu_credentials.js';
 //# sourceMappingURL=index.js.map

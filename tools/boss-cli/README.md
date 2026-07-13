@@ -63,6 +63,10 @@ boss help
 | 命令 | 说明 |
 | --- | --- |
 | `boss login` | 打开 Boss直聘登录页（扫码/验证后手动完成） |
+| `boss browser status` | 查看受管浏览器状态，不打开页面 |
+| `boss browser start --headless` | 启动后台无头浏览器 |
+| `boss browser restart --headful` | 切换为可视浏览器处理登录或验证码 |
+| `boss browser stop` | 安全停止受管浏览器 |
 | `boss update` | 通过 npm 安装最新版 boss-cli |
 | `boss list [--unread]` | 读取聊天列表；`--unread` 仅未读 |
 | `boss chat <姓名> [--strict]` | 打开指定候选人会话 |
@@ -96,6 +100,31 @@ boss send --text "您好，请问方便发一下简历吗？"
 boss recommend 前端工程师
 boss greet 张三 --job 前端工程师
 ```
+
+---
+
+## 后台浏览器
+
+普通业务命令默认不会再把 Chrome 窗口切到前台。登录必须使用可视模式，登录完成后可以切回无头模式：
+
+```bash
+boss browser status
+boss login
+# 完成扫码或验证后
+boss browser restart --headless
+boss list --unread
+```
+
+需要重新登录或处理验证码时：
+
+```bash
+boss browser restart --headful
+boss login
+```
+
+生命周期命令只会关闭带有有效本地元数据的受管 Chrome。升级前已经运行的 Boss 浏览器会显示为 `unmanaged`，首次使用时需要手动关闭该旧窗口一次，再执行 `boss browser start --headless`。
+
+调试时如需恢复普通命令的窗口激活行为，可设置 `BOSS_BROWSER_FOREGROUND=true`。
 
 ---
 

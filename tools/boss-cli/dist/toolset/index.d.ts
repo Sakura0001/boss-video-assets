@@ -35,5 +35,6 @@ export declare function implRecommendGreet(opts: {
     candidateTarget: string;
     jobKeyword?: string;
 }): Promise<string>;
+export declare function implBrowserCommand(command: import('./browser.js').BrowserCommand): Promise<string>;
 export { implSetBaiduCredentials } from './baidu_credentials.js';
 //# sourceMappingURL=index.d.ts.map
