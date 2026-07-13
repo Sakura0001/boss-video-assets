@@ -23,6 +23,10 @@ export type ConnectBrowserOptions = {
     headless?: boolean;
     /** 仅本地调试用：放宽同源/CORS 策略（高风险，默认关闭）。 */
     allowAllCors?: boolean;
+    /** 内部/隔离测试使用的 CDP 端口覆盖。 */
+    remoteDebuggingPort?: number;
+    /** 内部/隔离测试使用的运行时元数据路径覆盖。 */
+    runtimeFile?: string;
 };
 /**
  * 启动本机浏览器（puppeteer-core 底层为 Chrome DevTools Protocol）。
@@ -44,6 +48,10 @@ export declare function defaultViewportFromEnv(): {
     width: number;
     height: number;
 };
+export declare function launchManagedBrowser(options?: ConnectBrowserOptions): Promise<{
+    browser: Browser;
+    runtime: import('./browser_runtime.js').BrowserRuntime;
+}>;
 export declare function connectBrowser(options?: ConnectBrowserOptions): Promise<Browser>;
 /** 对某一页创建原生 CDP Session（需要低层域如 `Network.*`、`Fetch.*` 时使用）。 */
 export declare function createPageCDPSession(page: Page): Promise<CDPSession>;

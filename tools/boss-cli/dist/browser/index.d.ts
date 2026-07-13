@@ -5,6 +5,8 @@ export * from './timing.js';
 export * from './human_delay.js';
 export { hideAgentOperatingIndicator, showAgentOperatingIndicator, } from './agent_operating_indicator.js';
 export { resumeHeight, setTempHeight, snapshotBossPageViewport, type BossViewportSnapshot, } from './viewport_temp.js';
-export { connectBrowser, createPageCDPSession, defaultViewportFromEnv, LAUNCH_ARGS_ALLOW_ALL_CORS, LAUNCH_ARGS_LESS_AUTOMATION, type ConnectBrowserOptions, wasLastChromeLaunchHeadless, } from './cdp_browser.js';
+export { connectBrowser, createPageCDPSession, defaultViewportFromEnv, launchManagedBrowser, LAUNCH_ARGS_ALLOW_ALL_CORS, LAUNCH_ARGS_LESS_AUTOMATION, type ConnectBrowserOptions, wasLastChromeLaunchHeadless, } from './cdp_browser.js';
+export { getBrowserStatus, getBrowserStatusUnlocked, resolveBrowserRuntimeConfig, restartBrowser, restartBrowserUnlocked, startBrowser, startBrowserUnlocked, stopBrowser, stopBrowserUnlocked, } from './browser_controller.js';
+export { inspectBrowserRuntime, probeBrowserEndpoint, readBrowserRuntime, removeBrowserRuntime, writeBrowserRuntime, type BrowserMode, type BrowserRuntime, type BrowserRuntimeConfig, type BrowserRuntimeInspection, } from './browser_runtime.js';
 export { detachBrowserSession, disconnectBrowserSession, ensureAndGetBrowser, ensureBrowserSession, getBrowserRef, getPageRef, setSessionPage, } from './browser_session.js';
 //# sourceMappingURL=index.d.ts.map

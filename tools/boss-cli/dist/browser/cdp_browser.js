@@ -3,7 +3,8 @@ import { existsSync } from 'node:fs';
 import readline from 'node:readline';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
-import { BROWSER_USER_DATA_DIR, ensureAppDataLayout } from '../config.js';
+import { BROWSER_RUNTIME_FILE, BROWSER_USER_DATA_DIR, ensureAppDataLayout } from '../config.js';
+import { BROWSER_RUNTIME_SCHEMA_VERSION, inspectBrowserRuntime, writeBrowserRuntime, } from './browser_runtime.js';
 /** 与 @puppeteer/browsers 一致，解析 Chrome 启动日志中的 CDP WebSocket URL（可能在 stdout 或 stderr）。 */
 const CDP_WEBSOCKET_ENDPOINT_REGEX = /^DevTools listening on (ws:\/\/.*)$/;
 const LAUNCH_READY_MS = 30_000;
@@ -196,7 +197,7 @@ function launchViewportFromEnv() {
     }
     return defaultViewportFromEnv();
 }
-export async function connectBrowser(options = {}) {
+function resolveLaunchSettings(options = {}) {
     const executablePath = options.executablePath?.trim() ||
         process.env.CHROME_PATH?.trim() ||
         process.env.PUPPETEER_EXECUTABLE_PATH?.trim() ||
@@ -213,19 +214,24 @@ export async function connectBrowser(options = {}) {
     const headless = options.headless ?? process.env.BOSS_BROWSER_HEADLESS === 'true';
     const allowAllCors = options.allowAllCors ?? process.env.BOSS_BROWSER_ALLOW_ALL_CORS === 'true';
     const disableGpu = process.env.BOSS_BROWSER_DISABLE_GPU === 'true';
+    const remoteDebuggingPort = options.remoteDebuggingPort ?? REMOTE_DEBUGGING_PORT;
+    const runtimeFile = options.runtimeFile?.trim() || BROWSER_RUNTIME_FILE;
+    return {
+        executablePath,
+        userDataDir,
+        profileDirectory,
+        headless,
+        allowAllCors,
+        disableGpu,
+        remoteDebuggingPort,
+        runtimeFile,
+    };
+}
+export async function launchManagedBrowser(options = {}) {
+    const settings = resolveLaunchSettings(options);
+    const { executablePath, userDataDir, profileDirectory, headless, allowAllCors, disableGpu, remoteDebuggingPort, runtimeFile, } = settings;
     clearSpawnedChromeProcessRef();
     lastChromeLaunchHeadless = !!headless;
-    /**
-     * 优先直连固定调试端口上的已有实例：boss-cli 使用独立 user-data-dir，
-     * 端口稳定可期，命中即跨命令复用同一只浏览器（同一登录态、同一标签）。
-     */
-    const existingWsUrl = await probeRemoteDebuggingWsEndpoint(REMOTE_DEBUGGING_PORT, 800);
-    if (existingWsUrl) {
-        return await puppeteer.connect({
-            browserWSEndpoint: existingWsUrl,
-            defaultViewport: launchViewportFromEnv(),
-        });
-    }
     // 默认保留 WebAssembly：`typeof WebAssembly === 'undefined'` 本身就是强自动化指纹。
     // aegis_bg.wasm 已在 CDP `Fetch.enable` 层被阻断，不需要再禁用 WASM 引擎。
     // 仅当显式设置 BOSS_BROWSER_DISABLE_WASM=true/1 时才追加 --noexpose_wasm。
@@ -246,7 +252,7 @@ export async function connectBrowser(options = {}) {
     })
         .filter((a) => a !== '--enable-automation' && a !== 'about:blank' && a !== 'data:,');
     if (!chromeArgs.some((a) => a.startsWith('--remote-debugging-'))) {
-        chromeArgs.push(`--remote-debugging-port=${REMOTE_DEBUGGING_PORT}`);
+        chromeArgs.push(`--remote-debugging-port=${remoteDebuggingPort}`);
     }
     /**
      * 不使用 `puppeteer.launch()`：其依赖的 `@puppeteer/browsers` 会在 **Node 进程 `exit` 时 kill 浏览器子进程**，
@@ -292,10 +298,30 @@ export async function connectBrowser(options = {}) {
         clearSpawnedChromeProcessRef();
     }
     try {
-        return await puppeteer.connect({
+        const browser = await puppeteer.connect({
             browserWSEndpoint: wsUrl,
             defaultViewport: launchViewportFromEnv(),
         });
+        if (!Number.isInteger(proc.pid) || proc.pid <= 0) {
+            await browser.close().catch(() => { });
+            throw new Error('Chrome 已启动但未取得有效 PID，无法建立受管浏览器。');
+        }
+        const runtime = {
+            schemaVersion: BROWSER_RUNTIME_SCHEMA_VERSION,
+            pid: proc.pid,
+            port: remoteDebuggingPort,
+            mode: headless ? 'headless' : 'headful',
+            userDataDir: path.resolve(userDataDir),
+            startedAt: new Date().toISOString(),
+        };
+        try {
+            await writeBrowserRuntime(runtime, runtimeFile);
+        }
+        catch (error) {
+            await browser.close().catch(() => { });
+            throw error;
+        }
+        return { browser, runtime };
     }
     catch (e) {
         try {
@@ -307,6 +333,35 @@ export async function connectBrowser(options = {}) {
         clearSpawnedChromeProcessRef();
         throw e;
     }
+}
+export async function connectBrowser(options = {}) {
+    const settings = resolveLaunchSettings(options);
+    const status = await inspectBrowserRuntime({
+        filePath: settings.runtimeFile,
+        port: settings.remoteDebuggingPort,
+        userDataDir: path.resolve(settings.userDataDir),
+    });
+    const requestedMode = settings.headless ? 'headless' : 'headful';
+    if (status.state === 'running') {
+        if (status.runtime.mode !== requestedMode) {
+            throw new Error(`受管 Boss 浏览器正在以 ${status.runtime.mode} 模式运行。请先执行 boss browser restart --${requestedMode}。`);
+        }
+        lastChromeLaunchHeadless = status.runtime.mode === 'headless';
+        return puppeteer.connect({
+            browserWSEndpoint: status.webSocketDebuggerUrl,
+            defaultViewport: launchViewportFromEnv(),
+        });
+    }
+    if (status.state === 'unmanaged' ||
+        (status.state === 'stale' && status.effectiveState === 'unmanaged')) {
+        lastChromeLaunchHeadless = !!settings.headless;
+        return puppeteer.connect({
+            browserWSEndpoint: status.webSocketDebuggerUrl,
+            defaultViewport: launchViewportFromEnv(),
+        });
+    }
+    const launched = await launchManagedBrowser(options);
+    return launched.browser;
 }
 /** 对某一页创建原生 CDP Session（需要低层域如 `Network.*`、`Fetch.*` 时使用）。 */
 export async function createPageCDPSession(page) {

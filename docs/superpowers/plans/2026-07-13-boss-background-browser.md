@@ -92,7 +92,7 @@ git commit -m "Add managed browser runtime metadata"
 - Modify: `tools/boss-cli/dist/browser/index.js`
 - Modify: `tools/boss-cli/dist/browser/index.d.ts`
 
-- [ ] **Step 1: Add failing controller tests**
+- [x] **Step 1: Add failing controller tests**
 
 Use injected launch/connect/wait adapters to verify:
 
@@ -104,13 +104,13 @@ test('restart does not start when stop fails', async () => {});
 test('managed stop closes through CDP and removes metadata', async () => {});
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `node --test test/browser_controller.test.js`
 
 Expected: FAIL because the controller module does not exist.
 
-- [ ] **Step 3: Refactor CDP launch boundary**
+- [x] **Step 3: Refactor CDP launch boundary**
 
 Keep `connectBrowser(options)` as the normal command entry point and add an internal/exported launch operation returning the connected browser and child PID. On every successful spawn, persist:
 
@@ -127,7 +127,7 @@ Keep `connectBrowser(options)` as the normal command entry point and add an inte
 
 When an existing managed browser has a different requested mode, throw an actionable `boss browser restart --headless|--headful` error. Continue allowing ordinary commands to connect to an unmanaged legacy endpoint.
 
-- [ ] **Step 4: Implement controller operations**
+- [x] **Step 4: Implement controller operations**
 
 Export locked public operations and injectable unlocked operations:
 
@@ -142,13 +142,13 @@ export async function stopBrowserUnlocked(options = {}) {}
 
 Only `running` metadata authorizes CDP close. Wait for the endpoint to disappear before deleting metadata. Never automatically signal or kill a PID.
 
-- [ ] **Step 5: Export declarations and verify GREEN**
+- [x] **Step 5: Export declarations and verify GREEN**
 
 Run: `npm test`
 
 Expected: runtime and controller tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tools/boss-cli/dist/browser tools/boss-cli/test/browser_controller.test.js
