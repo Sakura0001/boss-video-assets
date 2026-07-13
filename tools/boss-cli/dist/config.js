@@ -23,6 +23,9 @@ export const JD_DIR = join(APP_HOME, 'jd');
 export const CACHE_DIR = join(APP_HOME, '.cache');
 /** Puppeteer 用户数据目录（与 CDP 启动默认目录一致） */
 export const BROWSER_USER_DATA_DIR = join(CACHE_DIR, 'browser-data');
+/** 受管浏览器运行时元数据；可覆盖以隔离测试实例。 */
+export const BROWSER_RUNTIME_FILE = process.env.BOSS_BROWSER_RUNTIME_FILE?.trim() ||
+    join(CACHE_DIR, 'browser-runtime.json');
 /** `chat` 抓取在线简历时对 iframe 区域截图保存目录 */
 export const RESUME_SCREENSHOTS_DIR = join(CACHE_DIR, 'resume-screenshots');
 /** 在线简历截图经 OCR 后的纯文本保存目录（与截图同名 `.txt`） */

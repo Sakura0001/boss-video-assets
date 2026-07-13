@@ -13,6 +13,8 @@ export declare const JD_DIR: string;
 export declare const CACHE_DIR: string;
 /** Puppeteer 用户数据目录（与 CDP 启动默认目录一致） */
 export declare const BROWSER_USER_DATA_DIR: string;
+/** 受管浏览器运行时元数据；可覆盖以隔离测试实例。 */
+export declare const BROWSER_RUNTIME_FILE: string;
 /** `chat` 抓取在线简历时对 iframe 区域截图保存目录 */
 export declare const RESUME_SCREENSHOTS_DIR: string;
 /** 在线简历截图经 OCR 后的纯文本保存目录（与截图同名 `.txt`） */

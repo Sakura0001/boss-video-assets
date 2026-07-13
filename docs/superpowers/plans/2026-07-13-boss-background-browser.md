@@ -20,7 +20,7 @@
 - Modify: `tools/boss-cli/dist/config.d.ts`
 - Modify: `tools/boss-cli/package.json`
 
-- [ ] **Step 1: Add failing runtime tests**
+- [x] **Step 1: Add failing runtime tests**
 
 Test `parseBrowserRuntime`, atomic mode-`0600` persistence, stale cleanup, and `stopped`/`running`/`unmanaged` classification using temporary paths and injected PID/endpoint probes.
 
@@ -36,13 +36,13 @@ test('classifies a matching live runtime as managed running', async () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `node --test test/browser_runtime.test.js`
 
 Expected: FAIL because `dist/browser/browser_runtime.js` does not exist.
 
-- [ ] **Step 3: Implement runtime metadata**
+- [x] **Step 3: Implement runtime metadata**
 
 Export:
 
@@ -58,7 +58,7 @@ export async function inspectBrowserRuntime(config, deps = {}) {}
 
 Use `writeFile(temp, ..., { mode: 0o600 })`, `chmod(temp, 0o600)`, and `rename(temp, target)` for atomic private writes. Never persist the WebSocket endpoint.
 
-- [ ] **Step 4: Add package test command and declarations**
+- [x] **Step 4: Add package test command and declarations**
 
 Set:
 
@@ -68,13 +68,13 @@ Set:
 
 Export `BROWSER_RUNTIME_FILE` from config as `process.env.BOSS_BROWSER_RUNTIME_FILE?.trim() || join(CACHE_DIR, 'browser-runtime.json')`. This override is used only for isolated tests and advanced multi-instance setups.
 
-- [ ] **Step 5: Verify GREEN**
+- [x] **Step 5: Verify GREEN**
 
 Run: `npm test`
 
 Expected: all runtime tests pass and no production browser is opened.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tools/boss-cli/package.json tools/boss-cli/dist/config.js tools/boss-cli/dist/config.d.ts tools/boss-cli/dist/browser/browser_runtime.js tools/boss-cli/dist/browser/browser_runtime.d.ts tools/boss-cli/test/browser_runtime.test.js
