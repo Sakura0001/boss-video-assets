@@ -45,6 +45,15 @@ class SkillContractTest(unittest.TestCase):
         )
         self.assertIn("同学你投的哪个部门呀？简历编号有给过别人吗？", self.all_text)
 
+    def test_recruiting_start_question_replies_then_requests_wechat(self):
+        application = self.reference_text["application.md"]
+        expected = "同学已经开始了哈，再过几天就可以投递了，可以先加我微信我跟下流程"
+        self.assertIn(expected, application)
+        self.assertIn("`boss action wechat`", application)
+        self.assertLess(application.index(expected), application.index("`boss action wechat`"))
+        self.assertIn("投递链接", self.reference_text["auto_reply.md"])
+        self.assertIn("招聘/秋招是否开始", self.reference_text["auto_reply.md"])
+
     def test_candidate_filter_is_2027_final_school_stem_and_silent_on_unknown(self):
         policy = self.reference_text["school_policy.yaml"]
         self.assertIn("graduation_year: 2027", policy)
