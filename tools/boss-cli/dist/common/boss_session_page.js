@@ -1,14 +1,11 @@
 import { BOSS_CHAT_INDEX_URL, isBossChatShellUrl } from './auth.js';
-import { hideAgentOperatingIndicator, showAgentOperatingIndicator, } from '../browser/agent_operating_indicator.js';
 import { ensureBrowserSession, getBrowserRef, getPageRef, setSessionPage, } from '../browser/browser_session.js';
 import { CONTEXT_DESTROY_RETRY_MS } from '../browser/human_delay.js';
 import { sleepRandom } from '../browser/timing.js';
+import { assertBossCliAvailable } from './boss_availability.js';
 import { installBossPageGuards } from './boss_page_guards.js';
 import { withBossSessionLock } from './boss_session_lock.js';
 const SHOULD_DISABLE_JS = process.env.BOSS_BROWSER_DISABLE_JS === 'true' || process.env.BOSS_BROWSER_DISABLE_JS === '1';
-/** 设为 `1` / `true` 时不注入顶栏滚动提示（调试或截图对比用）。 */
-const SKIP_AGENT_OPERATING_OVERLAY = process.env.BOSS_CLI_NO_AGENT_OVERLAY === '1' ||
-    process.env.BOSS_CLI_NO_AGENT_OVERLAY === 'true';
 /** Boss 为 SPA：`load` 后侧栏可能尚未挂载，需单独等待 `.menu-list` 出现 */
 const MENU_LIST_MOUNT_TIMEOUT_MS = 30_000;
 async function pickExistingPage(browser) {
@@ -90,10 +87,13 @@ async function ensureMenuListMountedAfterLoad(page) {
 }
 /**
  * 在已连接浏览器、且当前页为 Boss 主壳（含侧栏 `.menu-list`）的前提下执行回调。
- * 会先按 URL 确保落在 `/web/chat/*` 主壳页（已在主壳子页则保留原路径，否则跳回沟通页 `/web/chat/index`），
- * 再校验侧栏；回调内可再导航到职位/推荐等业务路由。
+ * 默认会先按 URL 确保落在 `/web/chat/*` 主壳页（已在主壳子页则保留原路径，否则跳回沟通页 `/web/chat/index`），
+ * 再校验侧栏；需要严格使用当前页面的命令可通过 options 关闭这些预检查。
  */
-export async function withBossSessionPage(callback) {
+export async function withBossSessionPage(callback, options = {}) {
+    await assertBossCliAvailable();
+    const shouldEnsureChatShell = options.ensureChatShell !== false;
+    const shouldEnsureMenuList = options.ensureMenuList !== false;
     return withBossSessionLock(async () => {
         const isContextDestroyed = (e) => {
             const msg = e instanceof Error ? e.message : String(e);
@@ -117,24 +117,16 @@ export async function withBossSessionPage(callback) {
                 setSessionPage(page);
                 await page.bringToFront();
                 await installBossPageGuards(page);
-                await ensureBossChatShellUrlBeforeMenuList(page);
+                if (shouldEnsureChatShell) {
+                    await ensureBossChatShellUrlBeforeMenuList(page);
+                }
                 if (SHOULD_DISABLE_JS) {
                     await page.setJavaScriptEnabled(false);
                 }
-                await ensureMenuListMountedAfterLoad(page);
-                if (!SHOULD_DISABLE_JS && !SKIP_AGENT_OPERATING_OVERLAY) {
-                    await showAgentOperatingIndicator(page).catch(() => {
-                        /* 注入失败不阻断业务 */
-                    });
+                if (shouldEnsureMenuList) {
+                    await ensureMenuListMountedAfterLoad(page);
                 }
-                try {
-                    return await callback(page);
-                }
-                finally {
-                    if (!SHOULD_DISABLE_JS && !SKIP_AGENT_OPERATING_OVERLAY) {
-                        await hideAgentOperatingIndicator(page);
-                    }
-                }
+                return await callback(page);
             }
             catch (e) {
                 lastErr = e;

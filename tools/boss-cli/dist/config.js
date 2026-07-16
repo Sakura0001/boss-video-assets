@@ -21,6 +21,9 @@ export const JD_DIR = join(APP_HOME, 'jd');
  * 应用缓存与生成数据根目录（浏览器配置等）
  */
 export const CACHE_DIR = join(APP_HOME, '.cache');
+/** 公共 Boss 操作的随机节流状态与互斥锁（仅保存时间和命令类型） */
+export const BOSS_COMMAND_PACING_STATE_FILE = join(CACHE_DIR, 'command-pacing.json');
+export const BOSS_COMMAND_PACING_LOCK_FILE = join(CACHE_DIR, 'command-pacing.lock');
 /** Puppeteer 用户数据目录（与 CDP 启动默认目录一致） */
 export const BROWSER_USER_DATA_DIR = join(CACHE_DIR, 'browser-data');
 /** `chat` 抓取在线简历时对 iframe 区域截图保存目录 */

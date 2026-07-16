@@ -7,18 +7,26 @@ export function selectAllModifierKey() {
 export const CHAT_GOTO_SETTLE_MS = { min: 2800, max: 5200 };
 /** 页面执行上下文被销毁后重试前 */
 export const CONTEXT_DESTROY_RETRY_MS = { min: 900, max: 1800 };
+/** 侧栏导航点击后，等待路由与 SPA 状态开始变化 */
+export const SIDEBAR_NAV_AFTER_CLICK_MS = { min: 420, max: 1100 };
 /** 列表滚动查找候选人时，每轮之间的间隔 */
-export const OPEN_CHAT_SCROLL_GAP_MS = { min: 200, max: 580 };
+export const OPEN_CHAT_SCROLL_GAP_MS = { min: 240, max: 760 };
 /** 点击会话行后，等待右侧面板出现的短停顿 */
 export const OPEN_CHAT_AFTER_ROW_CLICK_MS = { min: 420, max: 1200 };
 /** mouse.click 的按下/抬起间隔（Puppeteer delay 选项） */
 export const MOUSE_CLICK_PRESS_MS = { min: 55, max: 180 };
 /** 筛选「全部」等操作之间的停顿 */
 export const LIST_FILTER_GAP_MS = { min: 780, max: 1400 };
+/** 岗位下拉打开、搜索输入、选择岗位等连续动作之间的停顿 */
+export const JOB_SELECT_ACTION_GAP_MS = { min: 280, max: 760 };
+/** 岗位搜索输入后，等待前端过滤/接口刷新开始响应 */
+export const JOB_SEARCH_ACTION_GAP_MS = { min: 420, max: 980 };
+/** 点击候选人卡片打开简历预览后，等待弹层/iframe 开始挂载 */
+export const RESUME_PREVIEW_OPEN_GAP_MS = { min: 420, max: 1100 };
 /** 列表稳定轮询间隔（随机） */
-export const LIST_POLL_MS = { min: 340, max: 620 };
+export const LIST_POLL_MS = { min: 420, max: 780 };
 /** 列表为空时至少等待多久才认为稳定 */
-export const LIST_MIN_BEFORE_EMPTY_OK_MS = 3600;
+export const LIST_MIN_BEFORE_EMPTY_OK_MS = 5000;
 /** 登录态探测轮询间隔 */
 export const PROBE_LOGIN_POLL_MS = { min: 520, max: 980 };
 /** 点击聊天输入框 */
@@ -39,9 +47,9 @@ export const ONLINE_RESUME_IFRAME_APPEAR_MS = { min: 600, max: 1600 };
  * 点击后等待 c-resume iframe 出现、或判定为付费墙弹层的上限（毫秒）。
  * 仅在未出现付费墙时才会接近该时长；若先出现付费墙会提前结束（见 `waitForCResumeIframeOrPaywall`）。
  */
-export const ONLINE_RESUME_IFRAME_WAIT_MAX_MS = 12_000;
+export const ONLINE_RESUME_IFRAME_WAIT_MAX_MS = 15_000;
 /** 打招呼点击后主文档付费弹层轮询上限（毫秒）；命中则提前结束，未命中时最多增加约此时长。 */
-export const GREET_PAYWALL_WAIT_MAX_MS = 2500;
+export const GREET_PAYWALL_WAIT_MAX_MS = 3500;
 /** iframe 出现后等待简历区域渲染 */
 export const ONLINE_RESUME_IFRAME_SETTLE_MS = { min: 1800, max: 4200 };
 /**

@@ -4,11 +4,23 @@ import { resumeHeight, setTempHeight } from '../browser/viewport_temp.js';
 export const C_RESUME_IFRAME_SELECTOR = 'iframe[src*="c-resume"], iframe[src*="frame/c-resume"]';
 const CLOSE_C_RESUME_PANEL_SCRIPT = `(() => {
   const sel = ${JSON.stringify(C_RESUME_IFRAME_SELECTOR)};
-  const wraps = Array.from(document.querySelectorAll('.boss-popup__wrapper'));
+  function hasCResumeIframe(root) {
+    return Array.from(root.querySelectorAll('iframe')).some((iframe) => {
+      const src = iframe.getAttribute('src') || '';
+      return src.includes('c-resume') || src.includes('frame/c-resume');
+    });
+  }
+  const wraps = Array.from(document.querySelectorAll('.dialog-lib-resume, .boss-popup__wrapper, .boss-dialog__wrapper, .dialog-container'));
   for (var wi = 0; wi < wraps.length; wi++) {
     var w = wraps[wi];
-    if (w.querySelector(sel)) {
-      var c = w.querySelector('.boss-popup__close') || w.querySelector('.btn-quxiao');
+    if (hasCResumeIframe(w)) {
+      var c =
+        w.querySelector('.close-btn') ||
+        w.querySelector('.boss-popup__close') ||
+        w.querySelector('.boss-dialog__close') ||
+        w.querySelector('.drawer-close') ||
+        w.querySelector('.icon-close') ||
+        w.querySelector('.btn-quxiao');
       if (c) {
         c.click();
         return true;
@@ -19,7 +31,7 @@ const CLOSE_C_RESUME_PANEL_SCRIPT = `(() => {
   var node = iframe ? iframe.parentElement : null;
   for (var i = 0; i < 12 && node; i++) {
     var closeBtn = node.querySelector(
-      '.boss-popup__close, .drawer-close, .icon-close, .close-btn, .btn-quxiao',
+      '.close-btn, .boss-popup__close, .boss-dialog__close, .drawer-close, .icon-close, .btn-quxiao',
     );
     if (closeBtn) {
       closeBtn.click();
@@ -29,6 +41,7 @@ const CLOSE_C_RESUME_PANEL_SCRIPT = `(() => {
   }
   return false;
 })()`;
+const C_RESUME_CLOSE_AFTER_CAPTURE_DELAY_MS = 3_000;
 const VISIBLE_C_RESUME_IN_FRAME_SCRIPT = `(() => {
   var iframe = document.querySelector(${JSON.stringify(C_RESUME_IFRAME_SELECTOR)});
   if (!(iframe instanceof HTMLElement)) return false;
@@ -51,15 +64,22 @@ export function safeResumeScreenshotFileBase(name) {
 /** 关闭含 `c-resume` iframe 的弹层（聊天「在线简历」与推荐「预览」共用）。含 `.boss-popup__close`、`.btn-quxiao`（取消）等。会在主文档与各子 frame 中尝试。 */
 export async function closeCResumePanel(page) {
     try {
-        for (const frame of page.frames()) {
-            try {
-                await frame.evaluate(CLOSE_C_RESUME_PANEL_SCRIPT);
+        for (let round = 0; round < 5; round++) {
+            let closedAny = false;
+            for (const frame of page.frames()) {
+                try {
+                    const closed = (await frame.evaluate(CLOSE_C_RESUME_PANEL_SCRIPT));
+                    closedAny = closedAny || closed;
+                }
+                catch {
+                    /* detached / 无权限 */
+                }
             }
-            catch {
-                /* detached / 无权限 */
+            if (!closedAny) {
+                break;
             }
+            await sleepRandom(200, 450);
         }
-        await sleepRandom(200, 450);
     }
     catch {
         /* ignore */
@@ -85,7 +105,7 @@ export async function findVisibleCResumeIframeHandle(page) {
     }
     return null;
 }
-export async function waitForVisibleCResumeIframeReady(page, timeoutMs = 4_000) {
+export async function waitForVisibleCResumeIframeReady(page, timeoutMs = 6_000) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
         const iframe = await findVisibleCResumeIframeHandle(page);
@@ -103,8 +123,10 @@ export async function waitForVisibleCResumeIframeReady(page, timeoutMs = 4_000) 
                 try {
                     const ready = (await contentFrame.evaluate(`(() => {
             const body = document.body;
+            const doc = document.documentElement;
             const readyStateOk = document.readyState === "complete" || document.readyState === "interactive";
-            return readyStateOk && !!body && body.scrollHeight > 100;
+            const contentHeight = Math.max(body?.scrollHeight || 0, doc?.scrollHeight || 0);
+            return readyStateOk && contentHeight > 100;
           })()`));
                     if (ready) {
                         return true;
@@ -129,14 +151,14 @@ export async function waitForVisibleCResumeIframeReady(page, timeoutMs = 4_000) 
 export async function captureCResumeIframeToFile(page, preOpenViewport, absPath) {
     try {
         await setTempHeight(page, preOpenViewport);
-        await waitForVisibleCResumeIframeReady(page, 1_000);
+        await waitForVisibleCResumeIframeReady(page, 2_000);
         const iframe = await findVisibleCResumeIframeHandle(page);
         if (!iframe) {
             return false;
         }
-        await iframe.evaluate((el) => {
-            el.scrollIntoView({ block: 'start', inline: 'nearest' });
-        });
+        await iframe.evaluate(`((el) => {
+      el.scrollIntoView({ block: "start", inline: "nearest" });
+    })`);
         const box = await iframe.boundingBox();
         if (!box) {
             await iframe.dispose();
@@ -152,6 +174,7 @@ export async function captureCResumeIframeToFile(page, preOpenViewport, absPath)
         finally {
             await iframe.dispose();
         }
+        await sleepRandom(C_RESUME_CLOSE_AFTER_CAPTURE_DELAY_MS, C_RESUME_CLOSE_AFTER_CAPTURE_DELAY_MS);
         await closeCResumePanel(page);
         return true;
     }

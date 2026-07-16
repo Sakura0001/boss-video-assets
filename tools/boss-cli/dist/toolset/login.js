@@ -1,8 +1,6 @@
-import { detachBrowserSession, disconnectBrowserSession, ensureAndGetBrowser, ensureBrowserSession, getBrowserRef, getPageRef, setSessionPage, showAgentOperatingIndicator, wasLastChromeLaunchHeadless, } from '../browser/index.js';
+import { detachBrowserSession, disconnectBrowserSession, ensureAndGetBrowser, ensureBrowserSession, getBrowserRef, getPageRef, setSessionPage, wasLastChromeLaunchHeadless, } from '../browser/index.js';
+import { assertBossCliAvailable } from '../common/boss_availability.js';
 const BOSS_LOGIN_URL = 'https://www.zhipin.com/web/user/?ka=header-login';
-/** 设为 `1` / `true` 时不注入操作蒙层（与 {@link withBossSessionPage} 一致）。 */
-const SKIP_AGENT_OPERATING_OVERLAY = process.env.BOSS_CLI_NO_AGENT_OVERLAY === '1' ||
-    process.env.BOSS_CLI_NO_AGENT_OVERLAY === 'true';
 async function pickExistingPage(browser) {
     const pages = (await browser.pages()).filter((p) => !p.isClosed());
     if (pages.length === 0)
@@ -32,6 +30,7 @@ async function pickExistingPage(browser) {
  * 不做登录态校验/等待/超时判断；成功与否由后续命令自行体现。
  */
 export async function runLogin() {
+    await assertBossCliAvailable();
     // 登录必须可见：即使之前已启动 headless 会话，也需要重启为 headful。
     process.env.BOSS_BROWSER_HEADLESS = 'false';
     const existing = getBrowserRef();
@@ -68,11 +67,6 @@ export async function runLogin() {
     setSessionPage(page);
     await page.bringToFront();
     await page.goto(BOSS_LOGIN_URL, { waitUntil: 'load', timeout: 60_000 });
-    if (!SKIP_AGENT_OPERATING_OVERLAY) {
-        await showAgentOperatingIndicator(page).catch(() => {
-            /* 注入失败不阻断登录 */
-        });
-    }
     await detachBrowserSession();
     // 不做任何登录校验：只把浏览器打开到登录页；立即断开 CDP，CLI 不与浏览器进程长期绑定。
     return [

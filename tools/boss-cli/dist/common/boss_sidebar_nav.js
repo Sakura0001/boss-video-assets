@@ -1,12 +1,10 @@
+import { SIDEBAR_NAV_AFTER_CLICK_MS, sleepRandom } from '../browser/index.js';
 const SIDEBAR_NAV_WAIT_MS = 15_000;
 /**
  * 点击 Boss 左侧 `.menu-list` 中的菜单项，并等待导航到给定 pathname（如 `/web/chat/index`）。
  */
 export async function clickBossSidebarMenuToPath(page, menuLabel, targetPath) {
-    const argsJson = JSON.stringify({ label: menuLabel, path: targetPath });
-    const clicked = (await page.evaluate(`((args) => {
-      const label = args.label;
-      const path = args.path;
+    const clicked = (await page.evaluate(`(({ label, path }) => {
       const norm = (v) => (v ?? "").replace(/\\s+/g, "");
       const links = Array.from(document.querySelectorAll(".menu-list a"));
       const target = links.find((a) => {
@@ -23,11 +21,11 @@ export async function clickBossSidebarMenuToPath(page, menuLabel, targetPath) {
       target.scrollIntoView({ block: "center", inline: "nearest" });
       target.click();
       return true;
-    })(${argsJson})`));
+    })`, { label: menuLabel, path: targetPath }));
     if (!clicked) {
-        throw new Error(`未找到侧边栏菜单"${menuLabel}"，无法跳转到 ${targetPath}。`);
+        throw new Error(`未找到侧边栏菜单“${menuLabel}”，无法跳转到 ${targetPath}。`);
     }
-    const pathJson = JSON.stringify(targetPath);
+    await sleepRandom(SIDEBAR_NAV_AFTER_CLICK_MS.min, SIDEBAR_NAV_AFTER_CLICK_MS.max);
     await page.waitForFunction(`((path) => {
       try {
         const p = window.location.pathname.replace(/\\/+$/, "") || "/";
@@ -35,6 +33,6 @@ export async function clickBossSidebarMenuToPath(page, menuLabel, targetPath) {
       } catch {
         return false;
       }
-    })(${pathJson})`, { timeout: SIDEBAR_NAV_WAIT_MS });
+    })`, { timeout: SIDEBAR_NAV_WAIT_MS }, targetPath);
 }
 //# sourceMappingURL=boss_sidebar_nav.js.map

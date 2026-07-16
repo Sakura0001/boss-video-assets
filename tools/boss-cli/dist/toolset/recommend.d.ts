@@ -19,6 +19,7 @@ export declare function ensureInRecommendPage(page: Page): Promise<Frame>;
 /**
  * 供 `preview` 使用：不导航；若当前主页面不在推荐页或未就绪推荐 iframe，直接抛错。
  */
+export declare function assertRecommendPageReady(page: Page, actionName: string): Promise<Frame>;
 export declare function assertRecommendPageReadyForPreview(page: Page): Promise<Frame>;
 export declare function readRecommendList(frame: Frame): Promise<RecommendCandidate[]>;
 export declare function renderRecommendList(candidates: RecommendCandidate[]): string;

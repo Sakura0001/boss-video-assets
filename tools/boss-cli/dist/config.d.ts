@@ -11,6 +11,9 @@ export declare const JD_DIR: string;
  * 应用缓存与生成数据根目录（浏览器配置等）
  */
 export declare const CACHE_DIR: string;
+/** 公共 Boss 操作的随机节流状态与互斥锁（仅保存时间和命令类型） */
+export declare const BOSS_COMMAND_PACING_STATE_FILE: string;
+export declare const BOSS_COMMAND_PACING_LOCK_FILE: string;
 /** Puppeteer 用户数据目录（与 CDP 启动默认目录一致） */
 export declare const BROWSER_USER_DATA_DIR: string;
 /** `chat` 抓取在线简历时对 iframe 区域截图保存目录 */

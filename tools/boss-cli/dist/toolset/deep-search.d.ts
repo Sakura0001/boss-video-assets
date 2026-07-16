@@ -6,6 +6,12 @@ export type DeepSearchGeekItem = {
     edu: string;
     reason: string;
 };
+export type BossSearchOptions = {
+    jobKeyword?: string;
+    coreRequirements?: string[];
+    bonusRequirements?: string[];
+    match?: boolean;
+};
 export declare function isBossChatAiFormUrl(url: string): boolean;
 export declare function ensureInDeepSearchPage(page: Page): Promise<void>;
 export declare function selectAiFormJob(page: Page, keyword: string): Promise<string>;
@@ -25,7 +31,5 @@ export declare function runBossSearchSet(opts: {
     coreRequirements?: string[];
     bonusRequirements?: string[];
 }): Promise<string>;
-export declare function runBossSearch(opts?: {
-    jobKeyword?: string;
-}): Promise<string>;
+export declare function runBossSearch(opts?: BossSearchOptions): Promise<string>;
 //# sourceMappingURL=deep-search.d.ts.map

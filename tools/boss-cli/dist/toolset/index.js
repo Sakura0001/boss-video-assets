@@ -2,11 +2,12 @@
 import { runLogin } from './login.js';
 import { runGetCandidateList } from './list.js';
 import { runListOpenPositions } from './jd.js';
-import { runOpenCandidateChat } from './chat.js';
+import { runOpenCandidateChat, runOpenCandidateChatByIndex } from './chat.js';
 import { runChatActionOnCurrentConversation, } from './action.js';
 import { runSendChatMessage } from './send.js';
 import { withBossSessionPage } from '../common/boss_session_page.js';
 import { runBossSearch, runBossSearchSet } from './deep-search.js';
+import { runNormalSearch } from './normal-search.js';
 import { runRecommend } from './recommend.js';
 import { runPreview } from './preview.js';
 import { runRecommendGreet } from './greet.js';
@@ -21,6 +22,14 @@ export async function implListUnreadCandidates() {
 }
 export async function implOpenChat(candidateName, exact) {
     return withBossSessionPage(async (page) => runOpenCandidateChat(page, candidateName, exact));
+}
+export async function implOpenChatByIndex(params) {
+    return withBossSessionPage(async (page) => runOpenCandidateChatByIndex(page, {
+        index: params.index,
+        filter: params.unreadOnly ? 'unread' : 'all',
+        expectedName: params.expectedName,
+        exact: params.exact,
+    }));
 }
 export async function implChatAction(params) {
     return withBossSessionPage(async (page) => runChatActionOnCurrentConversation(page, params));
@@ -42,6 +51,9 @@ export async function implListPositionsWithOptions(opts) {
 }
 export async function implBossSearch(opts = {}) {
     return runBossSearch(opts);
+}
+export async function implNormalSearch(keyword) {
+    return runNormalSearch(keyword);
 }
 export async function implBossSearchSet(opts) {
     return runBossSearchSet(opts);

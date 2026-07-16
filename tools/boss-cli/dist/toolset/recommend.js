@@ -1,5 +1,6 @@
+import { JOB_SEARCH_ACTION_GAP_MS, JOB_SELECT_ACTION_GAP_MS, RESUME_PREVIEW_OPEN_GAP_MS, sleepRandom, } from '../browser/index.js';
 import { withBossSessionPage } from '../common/boss_session_page.js';
-import { clickBossSidebarMenuToPath } from '../common/boss_sidebar_nav.js';
+import { ensurePage } from '../common/ensure_page.js';
 const BOSS_CHAT_RECOMMEND_URL = 'https://www.zhipin.com/web/chat/recommend';
 /** 会话内记录：通过 greet 新出现的推荐卡片（以 geekId 识别） */
 const sessionGreetProducedGeekIds = new Set();
@@ -22,27 +23,24 @@ export function isBossChatRecommendUrl(url) {
     }
 }
 async function getRecommendFrame(page) {
-    await page.waitForSelector('iframe[name="recommendFrame"]', { timeout: 15_000 });
-    const start = Date.now();
-    while (Date.now() - start < 15_000) {
-        const frameByName = page.frames().find((f) => f.name() === 'recommendFrame') ?? null;
-        if (frameByName) {
-            return frameByName;
-        }
-        const frameByUrl = page.frames().find((f) => {
-            try {
-                return f.url().includes('/web/frame/recommend');
-            }
-            catch {
-                return false;
-            }
-        }) ?? null;
-        if (frameByUrl) {
-            return frameByUrl;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 250));
+    const timeoutMs = 18_000;
+    const iframe = await page.waitForSelector('iframe[name="recommendFrame"]', {
+        timeout: timeoutMs,
+    });
+    if (!iframe) {
+        throw new Error('未找到推荐 iframe（iframe[name="recommendFrame"]）。');
     }
-    throw new Error('已检测到推荐 iframe，但无法获取其页面上下文（recommendFrame）。');
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const frame = await iframe.contentFrame();
+        if (frame && frame.url().includes('/web/frame/recommend')) {
+            return frame;
+        }
+        await sleepRandom(120, 220);
+    }
+    const iframeSrc = (await page.evaluate(`(() => document.querySelector('iframe[name="recommendFrame"]')?.getAttribute("src") ?? "")()`));
+    const frameUrls = page.frames().map((f) => f.url()).join(' | ');
+    throw new Error(`已检测到推荐 iframe，但无法获取其页面上下文。iframe src：${iframeSrc || 'unknown'}；frames：${frameUrls || 'empty'}`);
 }
 async function ensureRecommendFrameReady(frame) {
     await frame.waitForFunction(`(() => {
@@ -50,7 +48,7 @@ async function ensureRecommendFrameReady(frame) {
       if (document.querySelector(sel)) return true;
       const root = document.querySelector(".card-list, .geek-list-wrap .geek-list");
       return !!root;
-    })()`, { timeout: 15_000 });
+    })()`, { timeout: 18_000 });
 }
 async function readCurrentRecommendJobLabel(frame) {
     return (await frame.evaluate(`(() => {
@@ -68,10 +66,9 @@ async function waitForRecommendJobDropdownReady(frame) {
         return false;
       }
       return !!options.querySelector(".top-chat-search .chat-job-search");
-    })()`, { timeout: 6_000 });
+    })()`, { timeout: 8_000 });
 }
 async function waitForRecommendJobSearchResults(frame, keyword) {
-    const kwJson = JSON.stringify(keyword);
     await frame.waitForFunction(`((kw) => {
       const norm = (v) => (v ?? "").replace(/\\s+/g, "").trim().toLowerCase();
       const rows = Array.from(document.querySelectorAll(".job-selecter-options .job-list .job-item"));
@@ -81,15 +78,14 @@ async function waitForRecommendJobSearchResults(frame, keyword) {
         const label = norm(el.querySelector(".label")?.textContent || el.textContent || "");
         return label.includes(norm(kw));
       });
-    })(${kwJson})`, { timeout: 8_000 });
+    })`, { timeout: 10_000 }, keyword);
 }
 async function waitForRecommendJobSelected(frame, expectedLabel) {
-    const labelJson = JSON.stringify(expectedLabel);
     await frame.waitForFunction(`((label) => {
       const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
       const current = norm(document.querySelector(".job-selecter-wrap .ui-dropmenu-label")?.textContent);
       return !!current && current === label;
-    })(${labelJson})`, { timeout: 8_000 });
+    })`, { timeout: 10_000 }, expectedLabel);
     await ensureRecommendFrameReady(frame);
 }
 export async function selectRecommendJob(frame, keyword) {
@@ -108,6 +104,7 @@ export async function selectRecommendJob(frame, keyword) {
     if (!opened) {
         throw new Error('未找到岗位下拉入口（.job-selecter-wrap .ui-dropmenu-label）。');
     }
+    await sleepRandom(JOB_SELECT_ACTION_GAP_MS.min, JOB_SELECT_ACTION_GAP_MS.max);
     await waitForRecommendJobDropdownReady(frame);
     const searched = (await frame.evaluate(`(() => {
     const kw = ${kwLiteral};
@@ -122,6 +119,7 @@ export async function selectRecommendJob(frame, keyword) {
     if (!searched) {
         throw new Error('已打开岗位下拉，但未找到职位搜索框（.chat-job-search）。');
     }
+    await sleepRandom(JOB_SEARCH_ACTION_GAP_MS.min, JOB_SEARCH_ACTION_GAP_MS.max);
     await waitForRecommendJobSearchResults(frame, kw);
     const picked = (await frame.evaluate(`(() => {
     const kw = ${kwLiteral};
@@ -144,16 +142,16 @@ export async function selectRecommendJob(frame, keyword) {
         throw new Error(`未找到匹配岗位“${kw}”。`);
     }
     const label = picked.label ?? kw;
+    await sleepRandom(JOB_SELECT_ACTION_GAP_MS.min, JOB_SELECT_ACTION_GAP_MS.max);
     await waitForRecommendJobSelected(frame, label);
     return label;
 }
 export async function ensureInRecommendPage(page) {
-    if (!isBossChatRecommendUrl(page.url())) {
-        await clickBossSidebarMenuToPath(page, '推荐', '/web/chat/recommend');
-    }
-    if (!isBossChatRecommendUrl(page.url())) {
-        throw new Error('通过侧边栏“推荐”进入页面失败，请确认已登录并可访问 /web/chat/recommend。');
-    }
+    await ensurePage(page, {
+        name: '推荐列表页',
+        targetUrl: BOSS_CHAT_RECOMMEND_URL,
+        matches: isBossChatRecommendUrl,
+    });
     const frame = await getRecommendFrame(page);
     await ensureRecommendFrameReady(frame);
     return frame;
@@ -161,13 +159,16 @@ export async function ensureInRecommendPage(page) {
 /**
  * 供 `preview` 使用：不导航；若当前主页面不在推荐页或未就绪推荐 iframe，直接抛错。
  */
-export async function assertRecommendPageReadyForPreview(page) {
+export async function assertRecommendPageReady(page, actionName) {
     if (!isBossChatRecommendUrl(page.url())) {
-        throw new Error('当前不在推荐列表页或搜索结果页，无法预览候选人。');
+        throw new Error(`当前不在推荐列表页（/web/chat/recommend），无法${actionName}。`);
     }
     const frame = await getRecommendFrame(page);
     await ensureRecommendFrameReady(frame);
     return frame;
+}
+export async function assertRecommendPageReadyForPreview(page) {
+    return assertRecommendPageReady(page, '预览候选人');
 }
 export async function readRecommendList(frame) {
     return (await frame.evaluate(`(() => {
@@ -360,7 +361,7 @@ export function markGreetProduced(before, after) {
 export async function openRecommendResumePreview(frame, target) {
     const raw = target.trim();
     const targetLiteral = JSON.stringify(raw);
-    return (await frame.evaluate(`(() => {
+    const opened = (await frame.evaluate(`(() => {
     const raw = ${targetLiteral};
     const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
     const cardSel = ${JSON.stringify(RECOMMEND_CARD_ROOT_SELECTOR)};
@@ -404,6 +405,10 @@ export async function openRecommendResumePreview(frame, target) {
 
     return false;
   })()`));
+    if (opened) {
+        await sleepRandom(RESUME_PREVIEW_OPEN_GAP_MS.min, RESUME_PREVIEW_OPEN_GAP_MS.max);
+    }
+    return opened;
 }
 export async function runRecommend(jobKeyword) {
     try {
