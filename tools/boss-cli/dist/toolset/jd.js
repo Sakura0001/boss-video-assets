@@ -89,26 +89,18 @@ async function fileExists(target) {
 async function readJobsFromFrame(frame) {
     return (await frame.evaluate(`(() => {
       const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
-      const rows = Array.from(document.querySelectorAll(".job-jobInfo-warp, .job-item-container"));
+      const rows = Array.from(document.querySelectorAll(".job-jobInfo-warp"));
       const jobs = rows.map((el) => {
         const statusText = norm(el.querySelector(".job-status-wrapper .status-box")?.textContent);
-        const labelText = norm(
-          el.querySelector(".job-title .label-common")?.textContent ||
-          el.querySelector(".job-title .base-label")?.textContent
-        );
-        const meta = Array.from(el.querySelectorAll(
-          ".job-main-info-wrapper .info-labels span, .job-main-info-wrapper .info-labels .divider-label-text"
-        ))
+        const labelText = norm(el.querySelector(".job-title .label-common")?.textContent);
+        const meta = Array.from(el.querySelectorAll(".job-main-info-wrapper .info-labels span"))
           .map((x) => norm(x.textContent))
           .filter(Boolean);
         const nums = Array.from(el.querySelectorAll(".job-about-num-wrapper .inner-box .num"))
           .map((x) => norm(x.textContent));
         return {
           id: norm(el.getAttribute("data-id")),
-          title: norm(
-            el.querySelector(".job-title a")?.textContent ||
-            el.querySelector(".job-title .job-name")?.textContent
-          ),
+          title: norm(el.querySelector(".job-title a")?.textContent),
           label: labelText,
           status: statusText,
           meta,
@@ -197,24 +189,21 @@ async function clickEditForJob(frame, job) {
       const jobId = ${targetId};
       const title = ${targetTitle};
       const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
-      const rows = Array.from(document.querySelectorAll(".job-jobInfo-warp, .job-item-container"));
+      const rows = Array.from(document.querySelectorAll(".job-jobInfo-warp"));
       let row = null;
       if (jobId) {
         row = rows.find((el) => norm(el.getAttribute("data-id")) === jobId) ?? null;
       }
       if (!row && title) {
         row = rows.find((el) => {
-          const t = norm(el.querySelector(".job-title a")?.textContent || el.querySelector(".job-title .job-name")?.textContent);
+          const t = norm(el.querySelector(".job-title a")?.textContent);
           return t === title;
         }) ?? null;
       }
       if (!row) return false;
-      const editBtn = Array.from(row.querySelectorAll(".position-edit, a, button, bzl-button, span"))
-        .find((el) => norm(el.textContent) === "编辑");
+      const editBtn = row.querySelector(".position-edit");
       if (!(editBtn instanceof HTMLElement)) return false;
-      editBtn.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
-      editBtn.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
-      editBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+      editBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
       editBtn.click();
       return true;
     })()`));
@@ -226,39 +215,6 @@ async function readJobDetailFromFrame(frame) {
     const detail = (await frame.evaluate(`(() => {
       const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
       const root = document.querySelector(".job-edit-container.edit-job");
-      const newRoot = document.querySelector(".job-edit-container");
-      if (!root && newRoot) {
-        const rowByLabel = (label) => {
-          const rows = Array.from(newRoot.querySelectorAll(".publish-edit-form-row"));
-          return rows.find((row) => norm(row.textContent).startsWith(label)) ?? null;
-        };
-        const selectedInRow = (label) => {
-          const row = rowByLabel(label);
-          return row ? Array.from(row.querySelectorAll(".ui-select-selected-value")).map((el) => norm(el.textContent)).filter(Boolean) : [];
-        };
-        const salaryValues = selectedInRow("薪资范围");
-        const keywords = Array.from(newRoot.querySelectorAll(".job-skill-content .job-skill-item, .job-skill-content .skill-tag, .job-skill-content .tag"))
-          .map((el) => norm(el.textContent))
-          .filter(Boolean);
-        return {
-          pageTitle: document.title || "",
-          pageUrl: location.href,
-          company: norm(rowByLabel("公 司")?.textContent).replace(/^公\\s*司\\s*/, ""),
-          recruitmentType: norm(newRoot.querySelector(".recruitment-type-select .ui-select-selected-value")?.textContent),
-          jobName: norm(newRoot.querySelector("input[name='jobName']")?.value),
-          description: norm(newRoot.querySelector("textarea")?.value),
-          overseas: norm(newRoot.querySelector(".overseas-entry-container .chose-item.active, .overseas-entry-container .active")?.textContent),
-          jobCategory:
-            norm(newRoot.querySelector("input[name='jobCategory']")?.value) ||
-            norm(newRoot.querySelector(".job-category-tag-container")?.innerText),
-          experience: selectedInRow("经验")[0] || "",
-          education: selectedInRow("学历")[0] || "",
-          salaryRange: salaryValues.length >= 2 ? (salaryValues[0] + "-" + salaryValues[1]) : salaryValues.join("-"),
-          salaryMonths: salaryValues[2] || "",
-          keywords: keywords.join("｜"),
-          workLocation: norm(newRoot.querySelector("input[placeholder='选择工作地点']")?.value),
-        };
-      }
       if (!root) {
         return null;
       }

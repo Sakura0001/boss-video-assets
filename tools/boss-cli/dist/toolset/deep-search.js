@@ -1,6 +1,6 @@
-import { selectAllModifierKey, sleepRandom } from '../browser/index.js';
+import { JOB_SEARCH_ACTION_GAP_MS, JOB_SELECT_ACTION_GAP_MS, RESUME_PREVIEW_OPEN_GAP_MS, selectAllModifierKey, sleepRandom, } from '../browser/index.js';
 import { withBossSessionPage } from '../common/boss_session_page.js';
-import { clickBossSidebarMenuToPath } from '../common/boss_sidebar_nav.js';
+import { ensurePage } from '../common/ensure_page.js';
 const BOSS_CHAT_AI_FORM_URL = 'https://www.zhipin.com/web/chat/aiform';
 export function isBossChatAiFormUrl(url) {
     try {
@@ -25,12 +25,20 @@ async function waitForAiFormReady(page) {
       }
       const text = (selected.textContent ?? "").replace(/\\s+/g, " ").trim();
       return text.length > 0;
-    })()`, { timeout: 15_000 });
+    })()`, { timeout: 18_000 });
 }
 export async function ensureInDeepSearchPage(page) {
     if (!isBossChatAiFormUrl(page.url())) {
         throw new Error('当前不在深度搜索页（/web/chat/aiform），请先通过侧栏进入「深度搜索」。');
     }
+    await waitForAiFormReady(page);
+}
+async function ensureDeepSearchPageReady(page) {
+    await ensurePage(page, {
+        name: '深度搜索页',
+        targetUrl: BOSS_CHAT_AI_FORM_URL,
+        matches: isBossChatAiFormUrl,
+    });
     await waitForAiFormReady(page);
 }
 async function clickAddConditionInSection(page, titleKeyword) {
@@ -631,18 +639,367 @@ async function applyLinesToSection(page, titleKeyword, lines) {
         nextRowIndex += 1;
     }
 }
+async function ensureRequirementGroupRow(page, titleKeyword, rowIndex) {
+    const titleLiteral = JSON.stringify(titleKeyword);
+    for (let round = 0; round < 5; round++) {
+        const state = (await page.evaluate(`(() => {
+      const titleKeyword = ${titleLiteral};
+      const rowIndex = ${rowIndex};
+      const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
+      function getGroup(title) {
+        const headers = Array.from(document.querySelectorAll(".form-content-header"));
+        const header = headers.find((el) => {
+          const h = norm(el.querySelector(".form-content-title-h3")?.textContent);
+          return h.includes(title);
+        });
+        if (!(header instanceof HTMLElement)) return null;
+        let node = header.nextElementSibling;
+        while (node && !node.classList.contains("form-content-header")) {
+          if (node.classList.contains("form-content-list")) return { header, list: node };
+          node = node.nextElementSibling;
+        }
+        return null;
+      }
+      const group = getGroup(titleKeyword);
+      if (!group) return { ok: false, reason: "missing_group", count: 0, x: 0, y: 0 };
+      const count = group.list.querySelectorAll(".form-content-list-item").length;
+      if (count > rowIndex) return { ok: true, count, x: 0, y: 0 };
+      const add = group.header.querySelector(".form-content-title-btn");
+      if (!(add instanceof HTMLElement)) return { ok: false, reason: "missing_add_button", count, x: 0, y: 0 };
+      const disabled =
+        add.getAttribute("aria-disabled") === "true" ||
+        add.classList.contains("disabled") ||
+        add.classList.contains("is-disabled");
+      if (disabled) return { ok: false, reason: "add_button_disabled", count, x: 0, y: 0 };
+      add.scrollIntoView({ block: "center", inline: "nearest" });
+      const rect = add.getBoundingClientRect();
+      return { ok: true, count, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    })()`));
+        if (!state.ok) {
+            throw new Error(`未找到「${titleKeyword}」分组或添加条件按钮：${state.reason ?? 'unknown'}`);
+        }
+        if (state.count > rowIndex) {
+            return;
+        }
+        await page.keyboard.press('Tab').catch(() => { });
+        await sleepRandom(80, 140);
+        await page.mouse.click(state.x, state.y);
+        try {
+            await page.waitForFunction(`(() => {
+          const titleKeyword = ${titleLiteral};
+          const rowIndex = ${rowIndex};
+          const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
+          const headers = Array.from(document.querySelectorAll(".form-content-header"));
+          const header = headers.find((el) => {
+            const h = norm(el.querySelector(".form-content-title-h3")?.textContent);
+            return h.includes(titleKeyword);
+          });
+          if (!header) return false;
+          let node = header.nextElementSibling;
+          while (node && !node.classList.contains("form-content-header")) {
+            if (node.classList.contains("form-content-list")) {
+              return node.querySelectorAll(".form-content-list-item").length > rowIndex;
+            }
+            node = node.nextElementSibling;
+          }
+          return false;
+        })()`, { timeout: 1600 });
+            return;
+        }
+        catch {
+            await sleepRandom(180, 260);
+        }
+    }
+    throw new Error(`「${titleKeyword}」第 ${rowIndex + 1} 条条件未能创建。`);
+}
+async function fillRequirementGroupRow(page, titleKeyword, rowIndex, value) {
+    const titleLiteral = JSON.stringify(titleKeyword);
+    const valueLiteral = JSON.stringify(value);
+    const clicked = (await page.evaluate(`(() => {
+    const titleKeyword = ${titleLiteral};
+    const rowIndex = ${rowIndex};
+    const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
+    function getList(title) {
+      const headers = Array.from(document.querySelectorAll(".form-content-header"));
+      const header = headers.find((el) => {
+        const h = norm(el.querySelector(".form-content-title-h3")?.textContent);
+        return h.includes(title);
+      });
+      if (!header) return null;
+      let node = header.nextElementSibling;
+      while (node && !node.classList.contains("form-content-header")) {
+        if (node.classList.contains("form-content-list")) return node;
+        node = node.nextElementSibling;
+      }
+      return null;
+    }
+    const list = getList(titleKeyword);
+    const row = list?.querySelectorAll(".form-content-list-item")[rowIndex];
+    if (!(row instanceof HTMLElement)) return false;
+    const target =
+      row.querySelector('[contenteditable="true"].auto-resize-textarea, [contenteditable="true"]') ||
+      row.querySelector(".form-content-list-item-content, .form-content-list-item-title") ||
+      row;
+    if (!(target instanceof HTMLElement)) return false;
+    target.scrollIntoView({ block: "center", inline: "nearest" });
+    target.click();
+    return true;
+  })()`));
+    if (!clicked) {
+        return false;
+    }
+    await sleepRandom(120, 220);
+    const selectAllMod = selectAllModifierKey();
+    await page.keyboard.down(selectAllMod);
+    await page.keyboard.press('KeyA');
+    await page.keyboard.up(selectAllMod);
+    await sleepRandom(40, 80);
+    await page.keyboard.type(value, { delay: 12 });
+    await page.keyboard.press('Tab');
+    await sleepRandom(120, 220);
+    const typedShown = (await page.evaluate(`(() => {
+    const titleKeyword = ${titleLiteral};
+    const rowIndex = ${rowIndex};
+    const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
+    function getList(title) {
+      const headers = Array.from(document.querySelectorAll(".form-content-header"));
+      const header = headers.find((el) => {
+        const h = norm(el.querySelector(".form-content-title-h3")?.textContent);
+        return h.includes(title);
+      });
+      if (!header) return null;
+      let node = header.nextElementSibling;
+      while (node && !node.classList.contains("form-content-header")) {
+        if (node.classList.contains("form-content-list")) return node;
+        node = node.nextElementSibling;
+      }
+      return null;
+    }
+    const list = getList(titleKeyword);
+    const row = list?.querySelectorAll(".form-content-list-item")[rowIndex];
+    if (!(row instanceof HTMLElement)) return "";
+    const word = row.querySelector(".form-content-word");
+    const editable = row.querySelector('[contenteditable="true"]');
+    const rowInput = row.querySelector("textarea, input");
+    if (word && norm(word.textContent)) return norm(word.textContent);
+    if (editable && norm(editable.textContent)) return norm(editable.textContent);
+    if (rowInput && norm(rowInput.value)) return norm(rowInput.value);
+    return norm(row.textContent);
+  })()`));
+    if (normFormText(typedShown) === normFormText(value)) {
+        return true;
+    }
+    const shown = (await page.evaluate(`(() => {
+    const titleKeyword = ${titleLiteral};
+    const rowIndex = ${rowIndex};
+    const value = ${valueLiteral};
+    const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
+    function getList(title) {
+      const headers = Array.from(document.querySelectorAll(".form-content-header"));
+      const header = headers.find((el) => {
+        const h = norm(el.querySelector(".form-content-title-h3")?.textContent);
+        return h.includes(title);
+      });
+      if (!header) return null;
+      let node = header.nextElementSibling;
+      while (node && !node.classList.contains("form-content-header")) {
+        if (node.classList.contains("form-content-list")) return node;
+        node = node.nextElementSibling;
+      }
+      return null;
+    }
+    function setNativeValue(el, val) {
+      const tracker = el._valueTracker;
+      if (tracker && typeof tracker.setValue === "function") tracker.setValue("");
+      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const desc = Object.getOwnPropertyDescriptor(proto, "value");
+      if (desc?.set) desc.set.call(el, val);
+      else el.value = val;
+    }
+    function fire(el) {
+      try {
+        el.dispatchEvent(new InputEvent("input", { bubbles: true, composed: true, data: value, inputType: "insertText" }));
+      } catch {
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    const list = getList(titleKeyword);
+    const row = list?.querySelectorAll(".form-content-list-item")[rowIndex];
+    if (!(row instanceof HTMLElement)) return "";
+    const editable = row.querySelector('[contenteditable="true"]');
+    let input = row.querySelector("textarea, input");
+    if (input instanceof HTMLInputElement && (input.type === "hidden" || input.type === "button" || input.type === "submit")) {
+      input = null;
+    }
+    if (editable instanceof HTMLElement) {
+      editable.focus();
+      editable.textContent = value;
+      fire(editable);
+      editable.blur();
+    } else if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+      input.focus();
+      setNativeValue(input, value);
+      fire(input);
+      input.blur();
+    } else {
+      const title = row.querySelector(".form-content-list-item-title");
+      if (!(title instanceof HTMLElement)) return "";
+      let word = title.querySelector(".form-content-word");
+      if (!(word instanceof HTMLElement)) {
+        word = document.createElement("div");
+        word.className = "form-content-word";
+        title.appendChild(word);
+      }
+      word.textContent = value;
+      title.classList.remove("error");
+      fire(word);
+      fire(title);
+    }
+    fire(row);
+    fire(list);
+    const word = row.querySelector(".form-content-word");
+    const shownEditable = row.querySelector('[contenteditable="true"]');
+    const rowInput = row.querySelector("textarea, input");
+    if (word && norm(word.textContent)) return norm(word.textContent);
+    if (shownEditable && norm(shownEditable.textContent)) return norm(shownEditable.textContent);
+    if (rowInput && norm(rowInput.value)) return norm(rowInput.value);
+    return norm(row.textContent);
+  })()`));
+    return normFormText(shown) === normFormText(value);
+}
+async function readRequirementGroupRowCount(page, titleKeyword) {
+    const titleLiteral = JSON.stringify(titleKeyword);
+    return (await page.evaluate(`(() => {
+    const titleKeyword = ${titleLiteral};
+    const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
+    const headers = Array.from(document.querySelectorAll(".form-content-header"));
+    const header = headers.find((el) => {
+      const h = norm(el.querySelector(".form-content-title-h3")?.textContent);
+      return h.includes(titleKeyword);
+    });
+    if (!header) return -1;
+    let node = header.nextElementSibling;
+    while (node && !node.classList.contains("form-content-header")) {
+      if (node.classList.contains("form-content-list")) {
+        return node.querySelectorAll(".form-content-list-item").length;
+      }
+      node = node.nextElementSibling;
+    }
+    return -1;
+  })()`));
+}
+async function removeRequirementGroupRowsAfter(page, titleKeyword, desiredCount) {
+    const titleLiteral = JSON.stringify(titleKeyword);
+    for (let count = await readRequirementGroupRowCount(page, titleKeyword); count > desiredCount; count -= 1) {
+        if (count < 0) {
+            throw new Error(`未找到「${titleKeyword}」分组。`);
+        }
+        const targetIndex = count - 1;
+        const pos = (await page.evaluate(`(() => {
+      const titleKeyword = ${titleLiteral};
+      const targetIndex = ${targetIndex};
+      const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
+      const headers = Array.from(document.querySelectorAll(".form-content-header"));
+      const header = headers.find((el) => {
+        const h = norm(el.querySelector(".form-content-title-h3")?.textContent);
+        return h.includes(titleKeyword);
+      });
+      if (!header) return null;
+      let node = header.nextElementSibling;
+      while (node && !node.classList.contains("form-content-header")) {
+        if (node.classList.contains("form-content-list")) {
+          const row = node.querySelectorAll(".form-content-list-item")[targetIndex];
+          const btn = row?.querySelector(".form-content-list-item-btn");
+          if (!(btn instanceof HTMLElement)) return null;
+          btn.scrollIntoView({ block: "center", inline: "nearest" });
+          const rect = btn.getBoundingClientRect();
+          return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        }
+        node = node.nextElementSibling;
+      }
+      return null;
+    })()`));
+        if (!pos) {
+            throw new Error(`「${titleKeyword}」第 ${targetIndex + 1} 条条件未找到删除按钮。`);
+        }
+        await page.mouse.click(pos.x, pos.y);
+        await page.waitForFunction(`(() => {
+        const titleKeyword = ${titleLiteral};
+        const expectedCount = ${targetIndex};
+        const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
+        const headers = Array.from(document.querySelectorAll(".form-content-header"));
+        const header = headers.find((el) => {
+          const h = norm(el.querySelector(".form-content-title-h3")?.textContent);
+          return h.includes(titleKeyword);
+        });
+        if (!header) return false;
+        let node = header.nextElementSibling;
+        while (node && !node.classList.contains("form-content-header")) {
+          if (node.classList.contains("form-content-list")) {
+            const items = Array.from(node.querySelectorAll(".form-content-list-item"));
+            if (items.length === expectedCount) return true;
+            if (expectedCount === 0 && items.length === 1) {
+              const item = items[0];
+              const word = norm(item.querySelector(".form-content-word")?.textContent);
+              const input = norm(item.querySelector("input, textarea")?.value);
+              const editable = norm(item.querySelector('[contenteditable="true"]')?.textContent);
+              return !word && !input && !editable;
+            }
+            return false;
+          }
+          node = node.nextElementSibling;
+        }
+        return false;
+      })()`, { timeout: 1800 });
+    }
+}
+async function applyLinesToRequirementGroup(page, titleKeyword, lines) {
+    let nextRowIndex = 0;
+    for (const raw of lines) {
+        const text = raw.trim();
+        if (!text) {
+            continue;
+        }
+        await ensureRequirementGroupRow(page, titleKeyword, nextRowIndex);
+        const ok = await fillRequirementGroupRow(page, titleKeyword, nextRowIndex, text);
+        if (!ok) {
+            throw new Error(`「${titleKeyword}」第 ${nextRowIndex + 1} 条条件未能写入：${text}`);
+        }
+        nextRowIndex += 1;
+    }
+    await removeRequirementGroupRowsAfter(page, titleKeyword, nextRowIndex);
+}
 async function applyAiFormRequirementLists(page, opts) {
     if (opts.core !== undefined) {
-        await applyLinesToSection(page, '核心要求', opts.core);
+        await applyLinesToRequirementGroup(page, '核心要求', opts.core);
     }
     if (opts.bonus !== undefined) {
-        await applyLinesToSection(page, '加分项', opts.bonus);
+        await applyLinesToRequirementGroup(page, '加分项', opts.bonus);
     }
 }
 async function readSearchFormSnapshot(page) {
     return (await page.evaluate(`(() => {
     const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
-    function itemLineText(item) {
+    function parseCount(text) {
+      const m = String(text || "").match(/\\d+/);
+      return m ? Number(m[0]) : null;
+    }
+    function getGroupList(titleKeyword) {
+      const headers = Array.from(document.querySelectorAll(".form-content-header"));
+      const header = headers.find((el) => {
+        const title = norm(el.querySelector(".form-content-title-h3")?.textContent);
+        return title.includes(titleKeyword);
+      });
+      if (!header) return null;
+      let node = header.nextElementSibling;
+      while (node && !node.classList.contains("form-content-header")) {
+        if (node.classList.contains("form-content-list")) return node;
+        node = node.nextElementSibling;
+      }
+      return null;
+    }
+    function itemLineText(item, groupTitle) {
       const word = item.querySelector(".form-content-word");
       const w = word ? norm(word.textContent) : "";
       if (w) return w;
@@ -651,33 +1008,41 @@ async function readSearchFormSnapshot(page) {
       const ce = item.querySelector("[contenteditable='true']");
       if (ce) return norm(ce.textContent);
       const titleEl = item.querySelector(".form-content-list-item-title");
-      if (titleEl) return norm(titleEl.textContent);
-      return "";
+      const title = titleEl ? norm(titleEl.textContent) : "";
+      if (!title) return "";
+      if (title.includes("请至少输入") || title.includes("可输入")) return "";
+      if (groupTitle && title.includes(groupTitle)) return "";
+      return title;
+    }
+    function readGroup(titleKeyword) {
+      const list = getGroupList(titleKeyword);
+      if (!list) return [];
+      return Array.from(list.querySelectorAll(".form-content-list-item"))
+        .map((item) => itemLineText(item, titleKeyword))
+        .filter(Boolean);
     }
     const selectedJob = norm(document.querySelector(".job-dropmenu-select .job-main-text")?.textContent);
-    const sections = Array.from(document.querySelectorAll(".form-content"));
-    const coreRequirements = [];
-    const bonusRequirements = [];
-    for (const section of sections) {
-      const title = norm(section.querySelector(".form-content-header .form-content-title-h3")?.textContent);
-      const items = section.querySelectorAll(".form-content-list-item");
-      const words = Array.from(items)
-        .map((item) => itemLineText(item))
-        .filter(Boolean);
-      if (title.includes("核心要求")) {
-        coreRequirements.push(...words);
-        continue;
-      }
-      if (title.includes("加分项")) {
-        bonusRequirements.push(...words);
-      }
-    }
     const remainingCountText = norm(document.querySelector(".ai-form-match-footer-text-count")?.textContent);
+    const btn = document.querySelector(".ai-form-match-footer .btn-ai-match-v2");
+    const btnText = norm(btn?.textContent);
+    let matchButtonDisabled = true;
+    if (btn instanceof HTMLElement) {
+      const cls = String(btn.className || "");
+      const style = getComputedStyle(btn);
+      matchButtonDisabled =
+        btn.getAttribute("disabled") !== null ||
+        /disabled|forbid|ban/i.test(cls) ||
+        style.pointerEvents === "none" ||
+        Number(style.opacity) < 0.3;
+    }
     return {
       selectedJob,
-      coreRequirements,
-      bonusRequirements,
+      coreRequirements: readGroup("核心要求"),
+      bonusRequirements: readGroup("加分项"),
       remainingCountText,
+      remainingCount: parseCount(remainingCountText),
+      matchButtonText: btnText || "未知",
+      matchButtonDisabled,
     };
   })()`));
 }
@@ -694,10 +1059,9 @@ async function waitForAiFormJobDropdownReady(page) {
         return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
       });
       return !!input;
-    })()`, { timeout: 6_000 });
+    })()`, { timeout: 8_000 });
 }
 async function waitForAiFormJobSearchResults(page, keyword) {
-    const kwJson = JSON.stringify(keyword);
     await page.waitForFunction(`((kw) => {
       const norm = (v) => (v ?? "").replace(/\\s+/g, "").trim().toLowerCase();
       const rows = Array.from(
@@ -710,15 +1074,14 @@ async function waitForAiFormJobSearchResults(page, keyword) {
         const label = norm(el.querySelector(".job-option-text, .label")?.textContent || el.textContent || "");
         return label.includes(norm(kw));
       });
-    })(${kwJson})`, { timeout: 8_000 });
+    })`, { timeout: 10_000 }, keyword);
 }
 async function waitForAiFormJobSelected(page, expectedLabel) {
-    const labelJson = JSON.stringify(expectedLabel);
     await page.waitForFunction(`((label) => {
       const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
       const selected = norm(document.querySelector(".job-dropmenu-select .job-main-text")?.textContent);
       return !!selected && selected === label;
-    })(${labelJson})`, { timeout: 8_000 });
+    })`, { timeout: 10_000 }, expectedLabel);
     await ensureInDeepSearchPage(page);
 }
 export async function selectAiFormJob(page, keyword) {
@@ -737,6 +1100,7 @@ export async function selectAiFormJob(page, keyword) {
     if (!opened) {
         throw new Error('未找到深度搜索页岗位下拉（.job-dropmenu-select）。');
     }
+    await sleepRandom(JOB_SELECT_ACTION_GAP_MS.min, JOB_SELECT_ACTION_GAP_MS.max);
     await waitForAiFormJobDropdownReady(page);
     const searched = (await page.evaluate(`(() => {
     const kw = ${kwLiteral};
@@ -758,6 +1122,7 @@ export async function selectAiFormJob(page, keyword) {
     return true;
   })()`));
     if (searched) {
+        await sleepRandom(JOB_SEARCH_ACTION_GAP_MS.min, JOB_SEARCH_ACTION_GAP_MS.max);
         await waitForAiFormJobSearchResults(page, kw);
     }
     const picked = (await page.evaluate(`(() => {
@@ -789,6 +1154,7 @@ export async function selectAiFormJob(page, keyword) {
         throw new Error(`未找到匹配岗位「${kw}」。`);
     }
     const label = picked.label ?? kw;
+    await sleepRandom(JOB_SELECT_ACTION_GAP_MS.min, JOB_SELECT_ACTION_GAP_MS.max);
     await waitForAiFormJobSelected(page, label);
     return label;
 }
@@ -807,7 +1173,7 @@ export async function readAiFormSelectedJobLabel(page) {
 export async function openDeepSearchResumePreview(page, target) {
     const raw = target.trim();
     const targetLiteral = JSON.stringify(raw);
-    return (await page.evaluate(`(() => {
+    const opened = (await page.evaluate(`(() => {
     const raw = ${targetLiteral};
     const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
     const allCards = Array.from(
@@ -863,6 +1229,10 @@ export async function openDeepSearchResumePreview(page, target) {
 
     return false;
   })()`));
+    if (opened) {
+        await sleepRandom(RESUME_PREVIEW_OPEN_GAP_MS.min, RESUME_PREVIEW_OPEN_GAP_MS.max);
+    }
+    return opened;
 }
 export async function readDeepSearchGeekList(page) {
     return (await page.evaluate(`(() => {
@@ -995,6 +1365,65 @@ function renderFormSnapshotOnly(snap) {
         `来源页面：${BOSS_CHAT_AI_FORM_URL}`,
     ].join('\n');
 }
+function renderSearchFormSummary(snap, actionLine) {
+    const core = snap.coreRequirements.length > 0 ? snap.coreRequirements.join('；') : '（空）';
+    const bonus = snap.bonusRequirements.length > 0 ? snap.bonusRequirements.join('；') : '（空）';
+    return [
+        actionLine,
+        `职位：${snap.selectedJob || '未知职位'}`,
+        `核心要求(${snap.coreRequirements.length})：${core}`,
+        `加分项(${snap.bonusRequirements.length})：${bonus}`,
+        `今日匹配剩余：${snap.remainingCountText || '未知'}`,
+        `匹配按钮：${snap.matchButtonText}${snap.matchButtonDisabled ? '（不可用）' : '（可用）'}`,
+    ].join('\n');
+}
+function renderDeepSearchOutput(snap, geeks, actionLine, listTitle = '推荐简历') {
+    return [
+        renderSearchFormSummary(snap, actionLine),
+        '',
+        renderGeekListSection(listTitle, geeks),
+    ].join('\n');
+}
+async function triggerAiFormMatch(page) {
+    const before = await readSearchFormSnapshot(page);
+    if (before.coreRequirements.length === 0) {
+        throw new Error('深度搜索至少需要 1 条核心要求；请先使用 --core 添加核心要求。');
+    }
+    if (before.remainingCount !== null && before.remainingCount <= 0) {
+        throw new Error(`今日匹配次数已用完：${before.remainingCountText || '0次'}`);
+    }
+    const beforeCountLiteral = JSON.stringify(before.remainingCountText);
+    const clicked = (await page.evaluate(`(() => {
+    const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
+    const btn = document.querySelector(".ai-form-match-footer .btn-ai-match-v2");
+    if (!(btn instanceof HTMLElement)) return { ok: false, reason: "missing_button" };
+    const cls = String(btn.className || "");
+    const style = getComputedStyle(btn);
+    const disabled =
+      btn.getAttribute("disabled") !== null ||
+      /disabled|forbid|ban/i.test(cls) ||
+      style.pointerEvents === "none" ||
+      Number(style.opacity) < 0.3;
+    if (disabled) return { ok: false, reason: "disabled", text: norm(btn.textContent) };
+    btn.scrollIntoView({ block: "center", inline: "nearest" });
+    btn.click();
+    return { ok: true, text: norm(btn.textContent) };
+  })()`));
+    if (!clicked.ok) {
+        throw new Error(`无法点击「立即匹配」：${clicked.reason ?? 'unknown'}${clicked.text ? `（${clicked.text}）` : ''}`);
+    }
+    await sleepRandom(900, 1400);
+    await page.waitForFunction(`(() => {
+      const beforeCount = ${beforeCountLiteral};
+      const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
+      const btnText = norm(document.querySelector(".ai-form-match-footer .btn-ai-match-v2")?.textContent);
+      const countText = norm(document.querySelector(".ai-form-match-footer-text-count")?.textContent);
+      const cards = document.querySelectorAll(".geeks-box .geek-card-item, .geek-card-list .geek-card-item").length;
+      const stillMatching = /停止匹配|匹配中|加载中|生成中/.test(btnText);
+      return !stillMatching && cards > 0 && (!beforeCount || (countText && countText !== beforeCount));
+    })()`, { timeout: 35_000 });
+    await ensureInDeepSearchPage(page);
+}
 export async function runBossSearchSet(opts) {
     const jobKeyword = opts.jobKeyword?.trim();
     const coreReq = opts.coreRequirements;
@@ -1005,14 +1434,7 @@ export async function runBossSearchSet(opts) {
     }
     try {
         return await withBossSessionPage(async (page) => {
-            const currentUrl = page.url();
-            if (!isBossChatAiFormUrl(currentUrl)) {
-                await clickBossSidebarMenuToPath(page, '深度搜索', '/web/chat/aiform');
-            }
-            if (!isBossChatAiFormUrl(page.url())) {
-                throw new Error('通过侧边栏“深度搜索”进入页面失败，请确认已登录并可访问 /web/chat/aiform。');
-            }
-            await ensureInDeepSearchPage(page);
+            await ensureDeepSearchPageReady(page);
             if (jobKeyword) {
                 await selectAiFormJob(page, jobKeyword);
                 await ensureInDeepSearchPage(page);
@@ -1039,25 +1461,39 @@ export async function runBossSearchSet(opts) {
 }
 export async function runBossSearch(opts = {}) {
     const jobKeyword = opts.jobKeyword?.trim();
+    const coreReq = opts.coreRequirements;
+    const bonusReq = opts.bonusRequirements;
+    const hasFormEdit = coreReq !== undefined || bonusReq !== undefined;
+    const shouldMatch = opts.match === true;
     try {
         return await withBossSessionPage(async (page) => {
-            const currentUrl = page.url();
-            if (!isBossChatAiFormUrl(currentUrl)) {
-                await clickBossSidebarMenuToPath(page, '深度搜索', '/web/chat/aiform');
-            }
-            if (!isBossChatAiFormUrl(page.url())) {
-                throw new Error('通过侧边栏“深度搜索”进入页面失败，请确认已登录并可访问 /web/chat/aiform。');
-            }
-            await ensureInDeepSearchPage(page);
+            await ensureDeepSearchPageReady(page);
             if (jobKeyword) {
                 await selectAiFormJob(page, jobKeyword);
                 await ensureInDeepSearchPage(page);
             }
-            const geeks = await readDeepSearchGeekList(page);
-            const title = jobKeyword
-                ? `深度搜索当前列表（岗位：${jobKeyword}，未触发「立即匹配」）`
-                : '深度搜索当前匹配结果（未触发「立即匹配」）';
-            return renderGeekListSection(title, geeks);
+            if (hasFormEdit) {
+                await applyAiFormRequirementLists(page, {
+                    core: coreReq,
+                    bonus: bonusReq,
+                });
+                await ensureInDeepSearchPage(page);
+            }
+            if (shouldMatch) {
+                await triggerAiFormMatch(page);
+            }
+            const snap = await readSearchFormSnapshot(page);
+            const actionLine = shouldMatch
+                ? '深度搜索：已触发「立即匹配」。'
+                : hasFormEdit
+                    ? '深度搜索：已更新表单，未触发「立即匹配」。'
+                    : '深度搜索：当前表单（未触发「立即匹配」）。';
+            if (!shouldMatch) {
+                return renderSearchFormSummary(snap, actionLine);
+            }
+            const geeks = (await readDeepSearchGeekList(page)).slice(0, 20);
+            const listTitle = shouldMatch ? '本次新增推荐简历（最新20条）' : '推荐简历';
+            return renderDeepSearchOutput(snap, geeks, actionLine, listTitle);
         });
     }
     catch (e) {

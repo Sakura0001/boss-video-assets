@@ -3,7 +3,7 @@ import { closeBossModalIfPresent, waitAndCloseBossModalIfPresent } from '../comm
 import { closeBossPaywallPopupIfPresent, describeBossPaywallPopupIfPresent, waitForBossPaywallPopup, } from '../common/boss_paywall_popup.js';
 import { withBossSessionPage } from '../common/boss_session_page.js';
 import { clickGreetDeepSearch, ensureInDeepSearchPage, isBossChatAiFormUrl, readDeepSearchGeekList, renderGeekListSection, selectAiFormJob, } from './deep-search.js';
-import { clickGreet, ensureInRecommendPage, markGreetProduced, readRecommendList, renderRecommendList, selectRecommendJob, } from './recommend.js';
+import { clickGreet, assertRecommendPageReady, markGreetProduced, readRecommendList, renderRecommendList, selectRecommendJob, } from './recommend.js';
 /** 打招呼前临时拉高父页视口，使 iframe 内更多卡片进入 DOM（与 recommend 列表读取已解耦）。 */
 const RECOMMEND_GREET_EXPAND_HEIGHT_PX = 3000;
 const RECOMMEND_GREET_EXPAND_SETTLE_MS = { min: 600, max: 1400 };
@@ -52,7 +52,7 @@ export async function runRecommendGreet(options) {
                 lines.push('', '当前深度搜索列表：', renderGeekListSection('深度搜索匹配结果', after));
                 return lines.join('\n');
             }
-            const frame = await ensureInRecommendPage(page);
+            const frame = await assertRecommendPageReady(page, '打招呼');
             const selectedJob = await selectRecommendJob(frame, kw);
             const jobLine = selectedJob ? `当前岗位：${selectedJob}` : '当前岗位：默认';
             const savedViewport = await snapshotBossPageViewport(page);
@@ -71,7 +71,7 @@ export async function runRecommendGreet(options) {
             finally {
                 await resumeHeight(page, savedViewport);
             }
-        });
+        }, { ensureChatShell: false, ensureMenuList: false });
     }
     catch (e) {
         const message = e instanceof Error ? e.message : String(e);

@@ -5,6 +5,12 @@ export declare function implLogin(): Promise<string>;
 export declare function implListCandidates(): Promise<string>;
 export declare function implListUnreadCandidates(): Promise<string>;
 export declare function implOpenChat(candidateName: string, exact: boolean): Promise<string>;
+export declare function implOpenChatByIndex(params: {
+    index: number;
+    unreadOnly?: boolean;
+    expectedName?: string;
+    exact?: boolean;
+}): Promise<string>;
 export declare function implChatAction(params: {
     action: ChatPageAction;
     remark?: string;
@@ -20,7 +26,11 @@ export declare function implListPositionsWithOptions(opts: {
 }): Promise<string>;
 export declare function implBossSearch(opts?: {
     jobKeyword?: string;
+    coreRequirements?: string[];
+    bonusRequirements?: string[];
+    match?: boolean;
 }): Promise<string>;
+export declare function implNormalSearch(keyword?: string): Promise<string>;
 export declare function implBossSearchSet(opts: {
     jobKeyword?: string;
     coreRequirements?: string[];
@@ -29,7 +39,6 @@ export declare function implBossSearchSet(opts: {
 export declare function implRecommend(jobKeyword?: string): Promise<string>;
 export declare function implPreview(opts: {
     candidateTarget: string;
-    jobKeyword?: string;
 }): Promise<string>;
 export declare function implRecommendGreet(opts: {
     candidateTarget: string;
