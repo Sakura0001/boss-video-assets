@@ -45,14 +45,38 @@ class SkillContractTest(unittest.TestCase):
         )
         self.assertIn("同学你投的哪个部门呀？简历编号有给过别人吗？", self.all_text)
 
-    def test_recruiting_start_question_replies_then_requests_wechat(self):
+    def test_application_paths_and_links_are_exact(self):
         application = self.reference_text["application.md"]
-        expected = "同学已经开始了哈，再过几天就可以投递了，可以先加我微信我跟下流程"
-        self.assertIn(expected, application)
+        expected = (
+            "https://career.huawei.com",
+            "https://career.huawei.com/reccampportal/portal5/campus-recruitment.html",
+            "软件开发工程师 → 通用软件/数据库",
+            "AI应用工程师 → AI技术应用/AI系统软件",
+            "网络安全与隐私保护工程师 → 网络安全",
+            "部门意向选择“ICT BG”“云软件研发部”",
+            "投递后，把简历编码发给我即可。",
+        )
+        for text in expected:
+            self.assertIn(text, application)
+        self.assertNotIn("不发送投递链接", application)
+        self.assertNotIn("再过几天就可以投递了", application)
         self.assertIn("`boss action wechat`", application)
-        self.assertLess(application.index(expected), application.index("`boss action wechat`"))
         self.assertIn("投递链接", self.reference_text["auto_reply.md"])
         self.assertIn("招聘/秋招是否开始", self.reference_text["auto_reply.md"])
+
+    def test_job_catalog_and_written_exam_formats_are_present(self):
+        job = self.reference_text["job_default.md"]
+        self.assertIn("软件测试类岗位/通用软件开发岗位", job)
+        self.assertIn("AI应用工程师", job)
+        self.assertIn("网络安全与隐私保护工程师", job)
+
+        interview = self.reference_text["faq_interview.md"]
+        self.assertIn("三道大题", interview)
+        self.assertIn("600 分", interview)
+        self.assertIn("180 分及格", interview)
+        self.assertIn("1 至 2 道大题", interview)
+        self.assertIn("AI 相关选择题", interview)
+        self.assertIn("全部为选择题", interview)
 
     def test_candidate_filter_is_2027_final_school_stem_and_silent_on_unknown(self):
         policy = self.reference_text["school_policy.yaml"]
