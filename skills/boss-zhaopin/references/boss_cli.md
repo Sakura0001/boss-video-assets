@@ -1,9 +1,10 @@
 # Boss CLI Reference
 
-The installed command is:
+The command is `boss` and must be available on `PATH`.
 
-```bash
-/opt/homebrew/bin/boss
+```text
+macOS / Linux: command -v boss
+Windows PowerShell: Get-Command boss
 ```
 
 It is a local Boss 直聘 automation CLI using the user's Chrome/CDP login state.

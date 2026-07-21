@@ -18,6 +18,14 @@ skills/boss-zhaopin/
 
 镜像只由已安装 skill 的同步脚本生成，不得独立修改业务口径。`boss-recruiting-agent/` 是历史框架资料，不作为运行时来源。处理 Boss 任务时必须加载 `boss-zhaopin/SKILL.md` 及其按需引用的 references，不能从本文件推断候选人回复。
 
+Windows 上从仓库根目录启动 Claude Code 时，项目桥接 skill 位于：
+
+```text
+.claude/skills/boss-zhaopin/SKILL.md
+```
+
+它只负责加载 `skills/boss-zhaopin/` 的仓库镜像，不维护第二套业务规则。Windows 运行时不得使用 `/Users/...` 或 `/opt/homebrew/...` 路径。
+
 ## Git 协作
 
 1. 修改前运行 `git status --short`。
@@ -28,10 +36,10 @@ skills/boss-zhaopin/
 
 ## Boss CLI
 
-已安装命令：
+运行命令必须通过 `PATH` 解析：
 
 ```text
-/opt/homebrew/bin/boss
+boss
 ```
 
 仓库副本：
@@ -78,7 +86,9 @@ python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/test_runtime_store.py
 python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/test_skill_contract.py
 python3 /Users/yuyu/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/yuyu/.codex/skills/boss-zhaopin
 python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/sync_repo_copy.py \
-  --destination /Users/yuyu/.codex/worktrees/c58b/boss招聘/skills/boss-zhaopin
+  --destination <当前仓库根目录>/skills/boss-zhaopin
 ```
 
 本地运行状态位于 `/Users/yuyu/.codex/state/boss-zhaopin/`，永远不能同步到仓库。
+
+Windows 默认状态位置为 `%USERPROFILE%\.codex\state\boss-zhaopin\`，可由 `BOSS_ZHAOPIN_STATE_DIR` 覆盖，同样永远不能同步到仓库。Windows 安装、验证和 Claude Code `/loop 1m` 启动方式见 `docs/windows-setup.md`。

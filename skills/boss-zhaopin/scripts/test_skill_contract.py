@@ -124,8 +124,25 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn("followup_interval_hours: 6", agent)
         self.assertIn("max_no_reply_followups: 8", agent)
         self.assertIn("temporary_state_retention_days: 3", agent)
-        self.assertIn("/Users/yuyu/.codex/state/boss-zhaopin/state.sqlite3", agent)
+        self.assertIn("~/.codex/state/boss-zhaopin/state.sqlite3", agent)
+        self.assertIn("BOSS_ZHAOPIN_STATE_DIR", agent)
         self.assertTrue((REFERENCES / "automation_runtime.md").exists())
+
+    def test_runtime_instructions_cover_windows_and_posix(self):
+        runtime = self.reference_text["automation_runtime.md"]
+        self.assertIn("Windows PowerShell", runtime)
+        self.assertIn("py -3", runtime)
+        self.assertIn("macOS / Linux", runtime)
+        self.assertIn("python3", runtime)
+        self.assertNotIn("/Users/yuyu/", self.skill + "\n" + runtime)
+
+    def test_knowledge_gap_wechat_handoff_is_guarded_by_transfer_eligibility(self):
+        flow = self.reference_text["candidate_conversion.md"]
+        risk = self.reference_text["risk_policy.yaml"]
+        self.assertIn("知识缺口转微信", flow)
+        self.assertIn("exchange_wechat", flow)
+        self.assertIn("approved_knowledge_gap_wechat_handoff", risk)
+        self.assertIn("不得绕过资格门槛", flow)
 
     def test_recommendation_refreshes_after_ten_unqualified_candidates(self):
         greet = self.reference_text["auto_greet.md"]

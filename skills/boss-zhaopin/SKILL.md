@@ -73,11 +73,11 @@ No technical experience is required. If school, major, degree, or graduation yea
 
 ## Knowledge Gaps
 
-For base HC or base-role existence questions, use the approved answer `有`. For other offer questions not covered by the references, do not send; append a redacted summary to `references/offer_questions_pending.md` and surface it for the user's later unified answer. After the user confirms a new answer, update this installed skill first, validate it, sync the repository copy, commit, and push.
+For base HC or base-role existence questions, use the approved answer `有`. For other questions not covered by the references, never invent an answer. Record only a redacted summary. If the candidate already passed the qualification gate and `evaluate-transfer` returns `exchange_wechat`, follow the guarded knowledge-gap handoff in `references/candidate_conversion.md`; otherwise pause only that candidate and surface the gap. Knowledge gaps never override qualification, transfer, complaint, stop-contact, or platform-risk rules. After the user confirms a new answer, update this installed skill first, validate it, sync the repository copy, commit, and push.
 
 ## Runtime and Reports
 
-Use `/Users/yuyu/.codex/skills/boss-zhaopin/scripts/runtime_store.py` exactly as documented in `references/automation_runtime.md`.
+Resolve the skill root from the directory containing this `SKILL.md`, then use `scripts/runtime_store.py` exactly as documented in `references/automation_runtime.md`. On Windows use `py -3`; on macOS or Linux use `python3`.
 
 - Temporary conversation state expires after three days.
 - Dedupe state remains through 2027-12-31.
@@ -104,8 +104,4 @@ When asked for a dated report, run `daily-report --date YYYY-MM-DD`. Do not infe
 
 After skill edits, run:
 
-```bash
-python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/test_runtime_store.py
-python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/test_skill_contract.py
-python3 /Users/yuyu/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/yuyu/.codex/skills/boss-zhaopin
-```
+Run `scripts/test_runtime_store.py` and `scripts/test_skill_contract.py` from the resolved skill root with the platform Python launcher. When Codex skill-creator is installed, also run its `quick_validate.py` against the resolved skill root.
