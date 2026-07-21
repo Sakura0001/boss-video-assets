@@ -30,7 +30,7 @@ Before replying to any inbound chat or greeting any recommendation, confirm ever
 - 2027 graduation year.
 - Bachelor or postgraduate degree.
 - Final-education school is in `references/target_schools.md`.
-- Major must exactly match the allowlist in `references/school_policy.yaml`.
+- Major may use a reasonable related variant, but must clearly map to one direction in the allowlist in `references/school_policy.yaml`; ambiguous or unrelated majors do not qualify.
 
 No technical experience is required. If school, major, degree, or graduation year is missing, ambiguous, or ineligible, do not reply and do not explain the internal filter.
 
