@@ -1,4 +1,4 @@
-import { BOSS_CHAT_INDEX_URL, isBossChatShellUrl } from './auth.js';
+import { assertBossLoggedInFromPage, BOSS_CHAT_INDEX_URL, isBossChatShellUrl, } from './auth.js';
 import { ensureBrowserSession, getBrowserRef, getPageRef, setSessionPage, } from '../browser/browser_session.js';
 import { CONTEXT_DESTROY_RETRY_MS } from '../browser/human_delay.js';
 import { sleepRandom } from '../browser/timing.js';
@@ -85,7 +85,7 @@ async function ensureMenuListMountedAfterLoad(page) {
     }
 }
 /**
- * 在已连接浏览器、且当前页为 Boss 主壳（含侧栏 `.menu-list`）的前提下执行回调。
+ * 在已连接浏览器、确认真实登录信号、且当前页为 Boss 主壳（含侧栏 `.menu-list`）的前提下执行回调。
  * 默认会先按 URL 确保落在 `/web/chat/*` 主壳页（已在主壳子页则保留原路径，否则跳回沟通页 `/web/chat/index`），
  * 再校验侧栏；需要严格使用当前页面的命令可通过 options 关闭这些预检查。
  */
@@ -118,6 +118,7 @@ export async function withBossSessionPage(callback, options = {}) {
                 if (shouldEnsureChatShell) {
                     await ensureBossChatShellUrlBeforeMenuList(page);
                 }
+                await assertBossLoggedInFromPage(page);
                 if (SHOULD_DISABLE_JS) {
                     await page.setJavaScriptEnabled(false);
                 }
