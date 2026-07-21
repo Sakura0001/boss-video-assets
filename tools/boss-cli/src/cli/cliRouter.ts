@@ -171,8 +171,9 @@ function printHelp(): void {
       读取当前职位列表（含开放/待开放/已关闭状态）
   boss jd <name>
       抓取指定职位详情并缓存到项目目录同名 .md
-  boss recommend [岗位关键字]
+  boss recommend [岗位关键字] [--refresh]
       进入推荐页并读取推荐列表；带岗位关键字时先在岗位下拉中模糊匹配并切换
+      --refresh：随机等待 1–2 秒后显式刷新推荐页，再读取新列表
   boss search [关键词]
       进入「搜索」页并读取 Boss 默认常规搜索结果；带关键词时填入搜索框并回车搜索
   boss preview <姓名>
@@ -555,11 +556,14 @@ export async function executeCommand(argv: string[]): Promise<string> {
     if (rest[0] === 'preview') {
       die('❌ 请改用: boss preview <姓名>（已不再使用 recommend preview）');
     }
-    if (Object.keys(opts).length > 0 || flags.size > 0) {
-      die('❌ 用法: recommend [岗位关键字]');
+    const unsupportedFlags = [...flags].filter((flag) => flag !== 'refresh');
+    if (Object.keys(opts).length > 0 || unsupportedFlags.length > 0) {
+      die('❌ 用法: recommend [岗位关键字] [--refresh]');
     }
     const jobKeyword = rest.join(' ').trim();
-    return runWithBossCommandPacing(cmd, () => implRecommend(jobKeyword || undefined));
+    return runWithBossCommandPacing(cmd, () =>
+      implRecommend(jobKeyword || undefined, { refresh: flags.has('refresh') }),
+    );
   }
 
   if (cmd === 'greet') {

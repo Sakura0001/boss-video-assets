@@ -82,9 +82,10 @@ class SkillContractTest(unittest.TestCase):
         policy = self.reference_text["school_policy.yaml"]
         self.assertIn("graduation_year: 2027", policy)
         self.assertIn('match_field: "final_education_school"', policy)
-        self.assertIn('major_mode: "related_allowlist"', policy)
+        self.assertIn('major_mode: "exact_allowlist"', policy)
         self.assertIn('allowed_majors:', policy)
         self.assertIn('计算机科学与技术', policy)
+        self.assertIn('专业名称必须逐字命中 allowed_majors', policy)
         self.assertIn('unknown_profile_action: "no_reply"', policy)
         self.assertIn("不要求技术经历", policy)
 
@@ -116,11 +117,24 @@ class SkillContractTest(unittest.TestCase):
     def test_runtime_limits_and_path_are_configured(self):
         agent = self.reference_text["agent.yaml"]
         self.assertIn("max_auto_greetings_per_day: 150", agent)
+        self.assertIn("recommendation_qualification_batch_size: 10", agent)
+        self.assertIn("refresh_recommendations_when_batch_has_no_match: true", agent)
+        self.assertIn("recommendation_refresh_interval_seconds:", agent)
         self.assertIn("followup_interval_hours: 6", agent)
         self.assertIn("max_no_reply_followups: 8", agent)
         self.assertIn("temporary_state_retention_days: 3", agent)
         self.assertIn("/Users/yuyu/.codex/state/boss-zhaopin/state.sqlite3", agent)
         self.assertTrue((REFERENCES / "automation_runtime.md").exists())
+
+    def test_recommendation_refreshes_after_ten_unqualified_candidates(self):
+        greet = self.reference_text["auto_greet.md"]
+        cli = self.reference_text["boss_cli.md"]
+        self.assertIn("每批检查 10 名不同候选人", greet)
+        self.assertIn("随机等待 1 至 2 秒", greet)
+        self.assertIn("boss recommend <岗位关键字> --refresh", greet)
+        self.assertIn("max_candidates_per_run: 150", greet)
+        self.assertIn("不得无限循环或快速重试", greet)
+        self.assertIn("boss recommend [岗位关键字] --refresh", cli)
 
     def test_eight_distinct_followup_variants_exist(self):
         followups = self.reference_text["followups.md"]
@@ -138,6 +152,8 @@ class SkillContractTest(unittest.TestCase):
         self.assertNotIn("数据库没有受到当下AI的太多冲击", self.all_text)
         self.assertNotIn("数据库/软件研发/测试开发方向比较匹配", self.all_text)
         self.assertNotIn("统一按开发/AI 开发方向沟通", self.all_text)
+        self.assertNotIn("允许合理相关变体", self.all_text)
+        self.assertNotIn('major_mode: "related_allowlist"', self.all_text)
 
     def test_local_state_privacy_rules_are_explicit(self):
         runtime_path = REFERENCES / "automation_runtime.md"

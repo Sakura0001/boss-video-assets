@@ -2,6 +2,7 @@ import type { Frame, Page } from 'puppeteer-core';
 import {
   JOB_SEARCH_ACTION_GAP_MS,
   JOB_SELECT_ACTION_GAP_MS,
+  RECOMMEND_REFRESH_GAP_MS,
   RESUME_PREVIEW_OPEN_GAP_MS,
   sleepRandom,
 } from '../browser/index.js';
@@ -206,6 +207,14 @@ export async function ensureInRecommendPage(page: Page): Promise<Frame> {
     targetUrl: BOSS_CHAT_RECOMMEND_URL,
     matches: isBossChatRecommendUrl,
   });
+  const frame = await getRecommendFrame(page);
+  await ensureRecommendFrameReady(frame);
+  return frame;
+}
+
+async function refreshRecommendPage(page: Page): Promise<Frame> {
+  await sleepRandom(RECOMMEND_REFRESH_GAP_MS.min, RECOMMEND_REFRESH_GAP_MS.max);
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
   const frame = await getRecommendFrame(page);
   await ensureRecommendFrameReady(frame);
   return frame;
@@ -492,11 +501,23 @@ export async function openRecommendResumePreview(frame: Frame, target: string): 
   return opened;
 }
 
-export async function runRecommend(jobKeyword?: string): Promise<string> {
+export async function runRecommend(
+  jobKeyword?: string,
+  options: { refresh?: boolean } = {},
+): Promise<string> {
   try {
     return await withBossSessionPage(async (page) => {
-      const frame = await ensureInRecommendPage(page);
-      const selectedJob = await selectRecommendJob(frame, (jobKeyword ?? '').trim());
+      let frame = await ensureInRecommendPage(page);
+      const selectedBeforeRefresh = await selectRecommendJob(frame, (jobKeyword ?? '').trim());
+      if (options.refresh) {
+        frame = await refreshRecommendPage(page);
+      }
+      const selectedJob = await readCurrentRecommendJobLabel(frame);
+      if (options.refresh && selectedBeforeRefresh && selectedJob !== selectedBeforeRefresh) {
+        throw new Error(
+          `刷新后岗位发生变化：刷新前“${selectedBeforeRefresh}”，刷新后“${selectedJob || 'unknown'}”。`,
+        );
+      }
       const candidates = await readRecommendList(frame);
       const title = selectedJob ? `当前岗位：${selectedJob}` : '当前岗位：默认';
       return [title, '', renderRecommendList(candidates)].join('\n');

@@ -58,8 +58,8 @@ export async function implNormalSearch(keyword) {
 export async function implBossSearchSet(opts) {
     return runBossSearchSet(opts);
 }
-export async function implRecommend(jobKeyword) {
-    return runRecommend(jobKeyword);
+export async function implRecommend(jobKeyword, options = {}) {
+    return runRecommend(jobKeyword, options);
 }
 export async function implPreview(opts) {
     return runPreview(opts);

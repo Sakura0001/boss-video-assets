@@ -30,7 +30,7 @@ Before replying to any inbound chat or greeting any recommendation, confirm ever
 - 2027 graduation year.
 - Bachelor or postgraduate degree.
 - Final-education school is in `references/target_schools.md`.
-- Major may use a reasonable related variant, but must clearly map to one direction in the allowlist in `references/school_policy.yaml`; ambiguous or unrelated majors do not qualify.
+- Major must exactly match one entry in the `allowed_majors` list in `references/school_policy.yaml`; related variants outside the list do not qualify.
 
 No technical experience is required. If school, major, degree, or graduation year is missing, ambiguous, or ineligible, do not reply and do not explain the internal filter.
 
@@ -55,10 +55,11 @@ No technical experience is required. If school, major, degree, or graduation yea
 ### New candidates
 
 1. Check `greeting-count`; stop at 150 greetings per day.
-2. Run `boss recommend <岗位关键字>` and qualify candidates.
-3. Check the long-term dedupe index before greeting.
-4. Run `boss greet "<姓名>" --job <岗位关键字>` one candidate at a time.
-5. Open the exact chat and follow `references/auto_greet.md`.
+2. Run `boss recommend <岗位关键字>` and qualify distinct candidates in batches of ten.
+3. If a batch contains no qualified candidate, wait a random one to two seconds, run `boss recommend <岗位关键字> --refresh`, and continue until a qualified candidate is found or a configured safety stop is reached.
+4. Check the long-term dedupe index before greeting.
+5. Run `boss greet "<姓名>" --job <岗位关键字>` one candidate at a time.
+6. Open the exact chat and follow `references/auto_greet.md`.
 
 ## Live-Action Safety
 

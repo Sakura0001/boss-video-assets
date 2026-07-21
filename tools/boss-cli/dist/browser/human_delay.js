@@ -21,6 +21,8 @@ export const LIST_FILTER_GAP_MS = { min: 780, max: 1400 };
 export const JOB_SELECT_ACTION_GAP_MS = { min: 280, max: 760 };
 /** 岗位搜索输入后，等待前端过滤/接口刷新开始响应 */
 export const JOB_SEARCH_ACTION_GAP_MS = { min: 420, max: 980 };
+/** 连续检查推荐候选人无匹配后，显式刷新推荐页前的间隔 */
+export const RECOMMEND_REFRESH_GAP_MS = { min: 1000, max: 2000 };
 /** 点击候选人卡片打开简历预览后，等待弹层/iframe 开始挂载 */
 export const RESUME_PREVIEW_OPEN_GAP_MS = { min: 420, max: 1100 };
 /** 列表稳定轮询间隔（随机） */

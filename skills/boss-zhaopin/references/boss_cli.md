@@ -76,6 +76,7 @@ Use `boss jd <岗位名称>` to refresh local JD cache when a candidate asks for
 
 ```bash
 boss recommend [岗位关键字]
+boss recommend [岗位关键字] --refresh
 boss preview <姓名> --job <岗位关键字>
 boss greet <姓名> --job <岗位关键字>
 boss deep-search [岗位关键字]
@@ -83,6 +84,7 @@ boss deep-search [岗位关键字]
 
 Notes:
 
+- `recommend --refresh` waits one to two seconds, explicitly reloads the recommendation page, and then reads the new list.
 - `preview` may consume online resume view quota.
 - `greet` consumes greeting quota.
 - `deep-search` depends on Boss UI routes and may fail if the platform changes.

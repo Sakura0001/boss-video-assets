@@ -16,6 +16,12 @@ automation:
   enable_auto_reply: true
   enable_auto_send: true
   unread_first: true
+  recommendation_qualification_batch_size: 10
+  refresh_recommendations_when_batch_has_no_match: true
+  recommendation_refresh_interval_seconds:
+    min: 1
+    max: 2
+  continue_recommendation_search_until_match: true
   require_knowledge_match: true
   allow_unknown_answer: false
   use_resume_preview: false
