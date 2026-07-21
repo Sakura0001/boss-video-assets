@@ -2,7 +2,6 @@ import { BOSS_CHAT_INDEX_URL, isBossChatShellUrl } from './auth.js';
 import { ensureBrowserSession, getBrowserRef, getPageRef, setSessionPage, } from '../browser/browser_session.js';
 import { CONTEXT_DESTROY_RETRY_MS } from '../browser/human_delay.js';
 import { sleepRandom } from '../browser/timing.js';
-import { assertBossCliAvailable } from './boss_availability.js';
 import { installBossPageGuards } from './boss_page_guards.js';
 import { withBossSessionLock } from './boss_session_lock.js';
 const SHOULD_DISABLE_JS = process.env.BOSS_BROWSER_DISABLE_JS === 'true' || process.env.BOSS_BROWSER_DISABLE_JS === '1';
@@ -91,7 +90,6 @@ async function ensureMenuListMountedAfterLoad(page) {
  * 再校验侧栏；需要严格使用当前页面的命令可通过 options 关闭这些预检查。
  */
 export async function withBossSessionPage(callback, options = {}) {
-    await assertBossCliAvailable();
     const shouldEnsureChatShell = options.ensureChatShell !== false;
     const shouldEnsureMenuList = options.ensureMenuList !== false;
     return withBossSessionLock(async () => {
