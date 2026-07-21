@@ -82,10 +82,11 @@ class SkillContractTest(unittest.TestCase):
         policy = self.reference_text["school_policy.yaml"]
         self.assertIn("graduation_year: 2027", policy)
         self.assertIn('match_field: "final_education_school"', policy)
-        self.assertIn('major_mode: "exact_allowlist"', policy)
+        self.assertIn('major_mode: "semantic_related_allowlist"', policy)
         self.assertIn('allowed_majors:', policy)
         self.assertIn('计算机科学与技术', policy)
-        self.assertIn('专业名称必须逐字命中 allowed_majors', policy)
+        self.assertIn('专业名称不要求逐字命中', policy)
+        self.assertIn('语义上能明确判断为计算机类', policy)
         self.assertIn('unknown_profile_action: "no_reply"', policy)
         self.assertIn("不要求技术经历", policy)
 
@@ -152,8 +153,8 @@ class SkillContractTest(unittest.TestCase):
         self.assertNotIn("数据库没有受到当下AI的太多冲击", self.all_text)
         self.assertNotIn("数据库/软件研发/测试开发方向比较匹配", self.all_text)
         self.assertNotIn("统一按开发/AI 开发方向沟通", self.all_text)
-        self.assertNotIn("允许合理相关变体", self.all_text)
-        self.assertNotIn('major_mode: "related_allowlist"', self.all_text)
+        self.assertNotIn('major_mode: "exact_allowlist"', self.all_text)
+        self.assertNotIn("专业名称必须逐字命中", self.all_text)
 
     def test_local_state_privacy_rules_are_explicit(self):
         runtime_path = REFERENCES / "automation_runtime.md"
