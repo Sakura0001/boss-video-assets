@@ -2,6 +2,17 @@
 
 本 Loop 由用户在项目根目录手动运行 `/loop 1m` 启动。该手动调用授权本会话在下述时间、资格、额度和风险边界内执行真实 Boss 招聘动作，无需逐候选人确认。`1m` 是约一分钟的唤醒节奏，不是单轮超时；调度抖动或长回合可能让实际间隔略长。
 
+## Windows + Claude Code 启动约定
+
+本提示词专门支持 Windows 上从仓库根目录启动 Claude Code 的场景。不要把 macOS 的绝对路径带入 Windows 运行。
+
+1. 用户必须先在包含 `.claude/loop.md` 的项目根目录启动 `claude`，再输入 `/loop 1m`。
+2. 项目级 `.claude/skills/boss-zhaopin/SKILL.md` 只是桥接文件；实际业务规则从仓库相对路径 `skills/boss-zhaopin/` 加载。
+3. Windows 使用 PowerShell 和 `py -3` 调用 Python；macOS/Linux 才使用 `python3`。`boss` 必须从 `PATH` 调用。
+4. 状态目录优先读取环境变量 `BOSS_ZHAOPIN_STATE_DIR`，未设置时使用 Windows 的 `%USERPROFILE%\.codex\state\boss-zhaopin`。小时报告只写入该目录，不写入仓库。
+5. 禁止使用 `/Users/yuyu/`、`/opt/homebrew/`、`/tmp/...` 等机器专属路径，也不要假定当前盘符、Shell 或用户名。
+6. 需要定位仓库或 skill 文件时，以 Claude Code 当前项目根目录和当前 `SKILL.md` 所在目录为准；不要 `cd` 到硬编码目录。
+
 ## 权威来源与平台
 
 1. 加载项目 skill `.claude/skills/boss-zhaopin/SKILL.md`，并以 `skills/boss-zhaopin/` 中的业务规则和 references 为唯一业务来源。
