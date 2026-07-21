@@ -3,7 +3,7 @@
 1. 读取 `agent.yaml`、`school_policy.yaml`、`target_schools.md`、`greetings.md` 和 `automation_runtime.md`。
 2. 查询当日 `greeting-count`，达到 150 时停止。
 3. 使用 `boss recommend <岗位关键字>` 获取候选人。
-4. 只处理资料明确的 2027 届、本科或研究生、目标学校、理工科候选人；不要求技术经历。
+4. 只处理资料明确的 2027 届、本科或研究生、目标学校、且专业命中 `school_policy.yaml` 的 `allowed_majors` 列表的候选人；不要求技术经历。
 5. 检查长期去重；已联系过的不再打招呼。
 6. 逐个执行 `boss greet "<姓名>" --job <岗位关键字>`，不要使用 shell 循环。
 7. 成功后记录 `greeted` 事件并写入去重索引。

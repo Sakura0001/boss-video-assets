@@ -82,7 +82,9 @@ class SkillContractTest(unittest.TestCase):
         policy = self.reference_text["school_policy.yaml"]
         self.assertIn("graduation_year: 2027", policy)
         self.assertIn('match_field: "final_education_school"', policy)
-        self.assertIn('major_mode: "stem_only"', policy)
+        self.assertIn('major_mode: "allowlist"', policy)
+        self.assertIn('allowed_majors:', policy)
+        self.assertIn('计算机科学与技术', policy)
         self.assertIn('unknown_profile_action: "no_reply"', policy)
         self.assertIn("不要求技术经历", policy)
 
