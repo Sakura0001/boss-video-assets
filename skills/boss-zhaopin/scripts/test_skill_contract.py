@@ -93,6 +93,7 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn("某个 base 是否有 HC", reply)
         self.assertIn("统一回复：`有`", reply)
         self.assertIn("还可以，和往年持平，有几十个", reply)
+        self.assertIn("可以先投递，先投递先进流程", reply)
         self.assertIn("offer_questions_pending.md", reply)
         self.assertIn("offer_questions_pending.md", self.all_text)
 
