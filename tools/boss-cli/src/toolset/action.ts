@@ -388,9 +388,7 @@ async function updateCandidateRemark(page: Page, remarkText: string): Promise<st
       const el = document.querySelector(selector);
       if (!(el instanceof HTMLTextAreaElement)) return false;
       return (el.value ?? "").trim() === expected;
-    })`,
-    textareaSel,
-    nextRemark,
+    })(${JSON.stringify(textareaSel)}, ${JSON.stringify(nextRemark)})`,
   )) as boolean;
   if (!filledOk) {
     throw new Error('备注输入未生效，请重试。');

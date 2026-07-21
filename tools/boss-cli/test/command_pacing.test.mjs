@@ -42,8 +42,10 @@ test('persists the next random wait and applies it before the next Boss command'
   await runPacedBossCommand('chat', async () => 'second', dependencies);
   assert.deepEqual(waits, [6_789]);
 
-  const fileStat = await stat(stateFile);
-  assert.equal(fileStat.mode & 0o777, 0o600);
+  if (process.platform !== 'win32') {
+    const fileStat = await stat(stateFile);
+    assert.equal(fileStat.mode & 0o777, 0o600);
+  }
 });
 
 test('still schedules the next wait when a Boss command fails', async () => {

@@ -46,6 +46,11 @@ export declare const JOB_SEARCH_ACTION_GAP_MS: {
     readonly min: 420;
     readonly max: 980;
 };
+/** 连续检查推荐候选人无匹配后，显式刷新推荐页前的间隔 */
+export declare const RECOMMEND_REFRESH_GAP_MS: {
+    readonly min: 1000;
+    readonly max: 2000;
+};
 /** 点击候选人卡片打开简历预览后，等待弹层/iframe 开始挂载 */
 export declare const RESUME_PREVIEW_OPEN_GAP_MS: {
     readonly min: 420;

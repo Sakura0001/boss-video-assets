@@ -1232,6 +1232,7 @@ async function waitForAiFormJobDropdownReady(page: Page): Promise<void> {
 }
 
 async function waitForAiFormJobSearchResults(page: Page, keyword: string): Promise<void> {
+  const keywordLiteral = JSON.stringify(keyword);
   await page.waitForFunction(
     `((kw) => {
       const norm = (v) => (v ?? "").replace(/\\s+/g, "").trim().toLowerCase();
@@ -1245,21 +1246,20 @@ async function waitForAiFormJobSearchResults(page: Page, keyword: string): Promi
         const label = norm(el.querySelector(".job-option-text, .label")?.textContent || el.textContent || "");
         return label.includes(norm(kw));
       });
-    })`,
+    })(${keywordLiteral})`,
     { timeout: 10_000 },
-    keyword,
   );
 }
 
 async function waitForAiFormJobSelected(page: Page, expectedLabel: string): Promise<void> {
+  const expectedLabelLiteral = JSON.stringify(expectedLabel);
   await page.waitForFunction(
     `((label) => {
       const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
       const selected = norm(document.querySelector(".job-dropmenu-select .job-main-text")?.textContent);
       return !!selected && selected === label;
-    })`,
+    })(${expectedLabelLiteral})`,
     { timeout: 10_000 },
-    expectedLabel,
   );
   await ensureInDeepSearchPage(page);
 }

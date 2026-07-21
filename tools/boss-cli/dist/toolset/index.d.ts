@@ -36,7 +36,9 @@ export declare function implBossSearchSet(opts: {
     coreRequirements?: string[];
     bonusRequirements?: string[];
 }): Promise<string>;
-export declare function implRecommend(jobKeyword?: string): Promise<string>;
+export declare function implRecommend(jobKeyword?: string, options?: {
+    refresh?: boolean;
+}): Promise<string>;
 export declare function implPreview(opts: {
     candidateTarget: string;
 }): Promise<string>;

@@ -4,14 +4,14 @@ import json
 import os
 import tempfile
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from zoneinfo import ZoneInfo
+from unittest.mock import patch
 
-from runtime_store import RuntimeStore, evaluate_transfer
+from runtime_store import RuntimeStore, default_db_path, default_state_dir, evaluate_transfer
 
 
-TZ = ZoneInfo("Asia/Shanghai")
+TZ = timezone(timedelta(hours=8), name="Asia/Shanghai")
 
 
 def at(hour: int, day: int = 10) -> datetime:
@@ -61,8 +61,23 @@ class RuntimeStoreTest(unittest.TestCase):
         self.tempdir.cleanup()
 
     def test_database_permissions_are_private(self):
+        if os.name == "nt":
+            self.skipTest("Windows ACLs do not map to POSIX permission bits")
         self.assertEqual(os.stat(self.db_path.parent).st_mode & 0o777, 0o700)
         self.assertEqual(os.stat(self.db_path).st_mode & 0o777, 0o600)
+
+    def test_default_state_path_is_cross_platform_and_overridable(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(
+                default_state_dir(),
+                Path.home() / ".codex" / "state" / "boss-zhaopin",
+            )
+            self.assertEqual(default_db_path(), default_state_dir() / "state.sqlite3")
+
+        override = str(Path(self.tempdir.name) / "portable-state")
+        with patch.dict(os.environ, {"BOSS_ZHAOPIN_STATE_DIR": override}, clear=True):
+            self.assertEqual(default_state_dir(), Path(override))
+            self.assertEqual(default_db_path(), Path(override) / "state.sqlite3")
 
     def test_due_followups_respect_six_hours_eight_limit_and_manual_takeover(self):
         now = at(12)

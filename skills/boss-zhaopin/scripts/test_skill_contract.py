@@ -82,9 +82,22 @@ class SkillContractTest(unittest.TestCase):
         policy = self.reference_text["school_policy.yaml"]
         self.assertIn("graduation_year: 2027", policy)
         self.assertIn('match_field: "final_education_school"', policy)
-        self.assertIn('major_mode: "stem_only"', policy)
+        self.assertIn('major_mode: "semantic_related_allowlist"', policy)
+        self.assertIn('allowed_majors:', policy)
+        self.assertIn('计算机科学与技术', policy)
+        self.assertIn('专业名称不要求逐字命中', policy)
+        self.assertIn('语义上能明确判断为计算机类', policy)
         self.assertIn('unknown_profile_action: "no_reply"', policy)
         self.assertIn("不要求技术经历", policy)
+
+    def test_base_hc_and_role_presence_answer_and_pending_offer_log_are_present(self):
+        reply = self.reference_text["auto_reply.md"]
+        self.assertIn("某个 base 是否有 HC", reply)
+        self.assertIn("统一回复：`有`", reply)
+        self.assertIn("还可以，和往年持平，有几十个", reply)
+        self.assertIn("可以先投递，先投递先进流程", reply)
+        self.assertIn("offer_questions_pending.md", reply)
+        self.assertIn("offer_questions_pending.md", self.all_text)
 
     def test_transfer_stop_and_exchange_rules_are_present(self):
         flow = self.reference_text["candidate_conversion.md"]
@@ -105,11 +118,41 @@ class SkillContractTest(unittest.TestCase):
     def test_runtime_limits_and_path_are_configured(self):
         agent = self.reference_text["agent.yaml"]
         self.assertIn("max_auto_greetings_per_day: 150", agent)
+        self.assertIn("recommendation_qualification_batch_size: 10", agent)
+        self.assertIn("refresh_recommendations_when_batch_has_no_match: true", agent)
+        self.assertIn("recommendation_refresh_interval_seconds:", agent)
         self.assertIn("followup_interval_hours: 6", agent)
         self.assertIn("max_no_reply_followups: 8", agent)
         self.assertIn("temporary_state_retention_days: 3", agent)
-        self.assertIn("/Users/yuyu/.codex/state/boss-zhaopin/state.sqlite3", agent)
+        self.assertIn("~/.codex/state/boss-zhaopin/state.sqlite3", agent)
+        self.assertIn("BOSS_ZHAOPIN_STATE_DIR", agent)
         self.assertTrue((REFERENCES / "automation_runtime.md").exists())
+
+    def test_runtime_instructions_cover_windows_and_posix(self):
+        runtime = self.reference_text["automation_runtime.md"]
+        self.assertIn("Windows PowerShell", runtime)
+        self.assertIn("py -3", runtime)
+        self.assertIn("macOS / Linux", runtime)
+        self.assertIn("python3", runtime)
+        self.assertNotIn("/Users/yuyu/", self.skill + "\n" + runtime)
+
+    def test_knowledge_gap_wechat_handoff_is_guarded_by_transfer_eligibility(self):
+        flow = self.reference_text["candidate_conversion.md"]
+        risk = self.reference_text["risk_policy.yaml"]
+        self.assertIn("知识缺口转微信", flow)
+        self.assertIn("exchange_wechat", flow)
+        self.assertIn("approved_knowledge_gap_wechat_handoff", risk)
+        self.assertIn("不得绕过资格门槛", flow)
+
+    def test_recommendation_refreshes_after_ten_unqualified_candidates(self):
+        greet = self.reference_text["auto_greet.md"]
+        cli = self.reference_text["boss_cli.md"]
+        self.assertIn("每批检查 10 名不同候选人", greet)
+        self.assertIn("随机等待 1 至 2 秒", greet)
+        self.assertIn("boss recommend <岗位关键字> --refresh", greet)
+        self.assertIn("max_candidates_per_run: 150", greet)
+        self.assertIn("不得无限循环或快速重试", greet)
+        self.assertIn("boss recommend [岗位关键字] --refresh", cli)
 
     def test_eight_distinct_followup_variants_exist(self):
         followups = self.reference_text["followups.md"]
@@ -127,6 +170,8 @@ class SkillContractTest(unittest.TestCase):
         self.assertNotIn("数据库没有受到当下AI的太多冲击", self.all_text)
         self.assertNotIn("数据库/软件研发/测试开发方向比较匹配", self.all_text)
         self.assertNotIn("统一按开发/AI 开发方向沟通", self.all_text)
+        self.assertNotIn('major_mode: "exact_allowlist"', self.all_text)
+        self.assertNotIn("专业名称必须逐字命中", self.all_text)
 
     def test_local_state_privacy_rules_are_explicit(self):
         runtime_path = REFERENCES / "automation_runtime.md"

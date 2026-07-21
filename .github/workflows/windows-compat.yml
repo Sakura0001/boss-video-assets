@@ -1,0 +1,53 @@
+name: Windows compatibility
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: tools/boss-cli/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test Boss CLI
+        working-directory: tools/boss-cli
+        run: |
+          npm ci
+          npm test
+
+      - name: Test recruiting runtime and skill contract
+        run: |
+          python skills/boss-zhaopin/scripts/test_runtime_store.py
+          python skills/boss-zhaopin/scripts/test_skill_contract.py
+          python skills/boss-zhaopin/scripts/test_sync_repo_copy.py
+
+      - name: Parse Windows setup script
+        shell: pwsh
+        run: |
+          $Tokens = $null
+          $Errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path ".\scripts\setup-windows.ps1"),
+            [ref]$Tokens,
+            [ref]$Errors
+          ) | Out-Null
+          if ($Errors.Count -gt 0) {
+            $Errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }

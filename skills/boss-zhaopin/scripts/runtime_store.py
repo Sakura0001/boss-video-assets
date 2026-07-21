@@ -5,19 +5,28 @@ import json
 import os
 import sqlite3
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-from zoneinfo import ZoneInfo
 
 
-TZ = ZoneInfo("Asia/Shanghai")
-DEFAULT_DB = Path("/Users/yuyu/.codex/state/boss-zhaopin/state.sqlite3")
+TZ = timezone(timedelta(hours=8), name="Asia/Shanghai")
 RUNTIME_TTL = timedelta(days=3)
 FOLLOWUP_INTERVAL = timedelta(hours=6)
 MAX_GENERAL_FOLLOWUPS = 8
 MAX_APPLICATION_STATUS_QUESTIONS = 2
 DEDUPE_EXPIRES_AT = datetime(2027, 12, 31, 23, 59, 59, tzinfo=TZ)
+
+
+def default_state_dir() -> Path:
+    configured = os.environ.get("BOSS_ZHAOPIN_STATE_DIR", "").strip()
+    if configured:
+        return Path(configured).expanduser()
+    return Path.home() / ".codex" / "state" / "boss-zhaopin"
+
+
+def default_db_path() -> Path:
+    return default_state_dir() / "state.sqlite3"
 
 
 @dataclass(frozen=True)
@@ -64,13 +73,14 @@ def _iso(value: Union[str, datetime]) -> str:
 
 
 class RuntimeStore:
-    def __init__(self, db_path: Union[str, Path] = DEFAULT_DB):
-        self.db_path = Path(db_path).expanduser()
+    def __init__(self, db_path: Optional[Union[str, Path]] = None):
+        self.db_path = Path(db_path).expanduser() if db_path is not None else default_db_path()
         self.conn: Optional[sqlite3.Connection] = None
 
     def init(self) -> "RuntimeStore":
         self.db_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        os.chmod(self.db_path.parent, 0o700)
+        if os.name != "nt":
+            os.chmod(self.db_path.parent, 0o700)
         self.conn = sqlite3.connect(str(self.db_path))
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(
@@ -122,7 +132,8 @@ class RuntimeStore:
             """
         )
         self.conn.commit()
-        os.chmod(self.db_path, 0o600)
+        if os.name != "nt":
+            os.chmod(self.db_path, 0o600)
         return self
 
     def close(self) -> None:
@@ -533,7 +544,7 @@ def _parse_bool(value: str) -> bool:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Boss recruiting local runtime state")
-    parser.add_argument("--db", default=str(DEFAULT_DB))
+    parser.add_argument("--db", default=str(default_db_path()))
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("init")

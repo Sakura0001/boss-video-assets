@@ -2,19 +2,40 @@
 
 ## 状态位置
 
-状态数据库固定为：
+默认状态数据库为：
 
-`/Users/yuyu/.codex/state/boss-zhaopin/state.sqlite3`
+`~/.codex/state/boss-zhaopin/state.sqlite3`
 
-目录权限为 `0700`，数据库权限为 `0600`。数据库和任何导出报告不得提交到 Git。
+Windows 上解析为 `%USERPROFILE%\.codex\state\boss-zhaopin\state.sqlite3`。如需改位置，设置 `BOSS_ZHAOPIN_STATE_DIR`；它指向目录，不是数据库文件。
+
+macOS 和 Linux 使用目录权限 `0700`、数据库权限 `0600`。Windows 把状态放在当前用户配置文件内，并由安装脚本收紧目录 ACL。数据库和任何导出报告不得提交到 Git。
+
+运行时脚本始终通过当前 skill 根目录解析：`<skill-root>/scripts/runtime_store.py`。不得硬编码某台机器的用户名或绝对路径。
 
 ## 启动
 
+### macOS / Linux
+
 ```bash
-python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/runtime_store.py init
-python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/runtime_store.py purge --as-of "<当前 ISO 时间>"
-python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/runtime_store.py greeting-count --date "YYYY-MM-DD"
-python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/runtime_store.py due-followups --as-of "<当前 ISO 时间>"
+SKILL_ROOT="<当前 SKILL.md 所在目录>"
+NOW_ISO="$(date -Iseconds)"
+python3 "$SKILL_ROOT/scripts/runtime_store.py" init
+python3 "$SKILL_ROOT/scripts/runtime_store.py" purge --as-of "$NOW_ISO"
+python3 "$SKILL_ROOT/scripts/runtime_store.py" greeting-count --date "YYYY-MM-DD"
+python3 "$SKILL_ROOT/scripts/runtime_store.py" due-followups --as-of "$NOW_ISO"
+```
+
+### Windows PowerShell
+
+从仓库根目录运行 Claude Code 时，项目 skill 根目录是 `skills\boss-zhaopin`：
+
+```powershell
+$SkillRoot = (Resolve-Path ".\skills\boss-zhaopin").Path
+$NowIso = (Get-Date).ToString("o")
+py -3 "$SkillRoot\scripts\runtime_store.py" init
+py -3 "$SkillRoot\scripts\runtime_store.py" purge --as-of $NowIso
+py -3 "$SkillRoot\scripts\runtime_store.py" greeting-count --date "YYYY-MM-DD"
+py -3 "$SkillRoot\scripts\runtime_store.py" due-followups --as-of $NowIso
 ```
 
 候选人标识优先使用 Boss 页面或 CLI 提供的稳定会话标识。无法取得时，使用规范化姓名、最终学校和毕业年份生成本地哈希；不得用姓名模糊匹配替代发送前的 `boss chat "<姓名>" --strict`。
@@ -46,11 +67,23 @@ python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/runtime_store.py due-foll
 
 把对话提取成结构化字段后运行：
 
+macOS / Linux：
+
 ```bash
-python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/runtime_store.py evaluate-transfer \
+python3 "$SKILL_ROOT/scripts/runtime_store.py" evaluate-transfer \
   --application-target "none|cloud_software|other|unknown" \
   --psych-status "not_taken|passed|failed|unknown" \
   --interview-status "not_started|started|unknown" \
+  --written-status "not_taken|passed|failed|unknown"
+```
+
+Windows PowerShell 使用相同参数，把解释器和脚本路径换为：
+
+```powershell
+py -3 "$SkillRoot\scripts\runtime_store.py" evaluate-transfer `
+  --application-target "none|cloud_software|other|unknown" `
+  --psych-status "not_taken|passed|failed|unknown" `
+  --interview-status "not_started|started|unknown" `
   --written-status "not_taken|passed|failed|unknown"
 ```
 
@@ -62,8 +95,9 @@ python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/runtime_store.py evaluate
 
 ## 日报
 
-```bash
-python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/runtime_store.py daily-report --date "YYYY-MM-DD"
+```text
+macOS / Linux: python3 "$SKILL_ROOT/scripts/runtime_store.py" daily-report --date "YYYY-MM-DD"
+Windows PowerShell: py -3 "$SkillRoot\scripts\runtime_store.py" daily-report --date "YYYY-MM-DD"
 ```
 
 日报包含招呼、回复、简历、投递状态、微信交换、转化率、终止原因、知识缺口，以及当天完成微信交换的候选人名单。数据库没有该日期的数据时，明确说没有记录，不得编造或擅自填零。

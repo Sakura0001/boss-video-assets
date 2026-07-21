@@ -156,6 +156,19 @@ export async function probeLoggedInFromPage(page) {
     }
     return { loggedIn: false, url };
 }
+/**
+ * 要求当前页面具有明确的 Boss 登录信号。
+ *
+ * 不能使用“页面能打开”或“候选人列表为空”作为登录成功依据：未登录页面也可能
+ * 渲染 Boss SPA 的主壳和筛选控件。所有依赖登录态的 CLI 命令应在读取业务 DOM 前
+ * 先调用此函数。
+ */
+export async function assertBossLoggedInFromPage(page) {
+    const { loggedIn } = await probeLoggedInFromPage(page);
+    if (!loggedIn) {
+        throw new Error('Boss 当前未登录，无法执行该命令。请先运行 boss login，在浏览器中完成登录后，再重新执行当前命令。');
+    }
+}
 /** 沟通页且已登录（与 {@link probeLoggedInFromPage} 一致）。 */
 export async function probeBossChatIndexLoggedIn(page) {
     const url = page.url();

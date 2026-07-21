@@ -4,7 +4,7 @@
 
 ## 唯一业务来源
 
-招聘筛选、话术、投递资格、自动跟进、微信交换、状态和日报规则只维护在已安装 skill：
+招聘筛选、话术、投递资格、自动跟进、微信交换、状态和日报规则只维护在已安装 skill（源机器）或其同步后的项目 skill 镜像：
 
 ```text
 /Users/yuyu/.codex/skills/boss-zhaopin/
@@ -18,6 +18,16 @@ skills/boss-zhaopin/
 
 镜像只由已安装 skill 的同步脚本生成，不得独立修改业务口径。`boss-recruiting-agent/` 是历史框架资料，不作为运行时来源。处理 Boss 任务时必须加载 `boss-zhaopin/SKILL.md` 及其按需引用的 references，不能从本文件推断候选人回复。
 
+Windows 上从仓库根目录启动 Claude Code 时，项目桥接 skill 位于：
+
+```text
+.claude/skills/boss-zhaopin/SKILL.md
+```
+
+它只负责加载 `skills/boss-zhaopin/` 的仓库镜像，不维护第二套业务规则。Windows 运行时不得使用 `/Users/...` 或 `/opt/homebrew/...` 路径。
+
+Windows 运行时没有上述 macOS 安装路径；此时以仓库根目录下的 `skills/boss-zhaopin/` 为当前可执行镜像，并通过 `.claude/skills/boss-zhaopin/SKILL.md` 加载。若要修改业务口径，先在源 skill 更新、验证，再同步镜像并提交。
+
 ## Git 协作
 
 1. 修改前运行 `git status --short`。
@@ -28,10 +38,10 @@ skills/boss-zhaopin/
 
 ## Boss CLI
 
-已安装命令：
+运行命令必须通过 `PATH` 解析：
 
 ```text
-/opt/homebrew/bin/boss
+boss
 ```
 
 仓库副本：
@@ -71,14 +81,28 @@ boss greet <姓名> --job <岗位关键字>
 
 ## Skill 更新和同步
 
-先更新并验证已安装 skill，再同步仓库镜像：
+先更新并验证源 skill，再同步仓库镜像。Windows 只验证仓库镜像，不尝试访问 macOS 安装路径。
+
+macOS/Linux 使用源 skill 路径运行：
 
 ```bash
-python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/test_runtime_store.py
-python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/test_skill_contract.py
-python3 /Users/yuyu/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/yuyu/.codex/skills/boss-zhaopin
-python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/sync_repo_copy.py \
-  --destination /Users/yuyu/.codex/worktrees/c58b/boss招聘/skills/boss-zhaopin
+python3 <source-skill>/scripts/test_runtime_store.py
+python3 <source-skill>/scripts/test_skill_contract.py
+python3 <source-skill>/scripts/sync_repo_copy.py \
+  --destination <repo-root>/skills/boss-zhaopin
 ```
 
+Windows 从仓库根目录运行：
+
+```powershell
+$SkillRoot = (Resolve-Path ".\\skills\\boss-zhaopin").Path
+py -3 "$SkillRoot\\scripts\\test_runtime_store.py"
+py -3 "$SkillRoot\\scripts\\test_skill_contract.py"
+py -3 "$SkillRoot\\scripts\\test_sync_repo_copy.py"
+```
+
+不要把 `/Users/yuyu/...` 或 `/opt/homebrew/...` 路径复制到 Windows 命令中。
+
 本地运行状态位于 `/Users/yuyu/.codex/state/boss-zhaopin/`，永远不能同步到仓库。
+
+Windows 默认状态位置为 `%USERPROFILE%\.codex\state\boss-zhaopin\`，可由 `BOSS_ZHAOPIN_STATE_DIR` 覆盖，同样永远不能同步到仓库。Windows 安装、验证和 Claude Code `/loop 1m` 启动方式见 `docs/windows-setup.md`。

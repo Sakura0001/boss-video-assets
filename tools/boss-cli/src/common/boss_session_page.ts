@@ -3,7 +3,11 @@
  * 再执行 {@link withBossSessionPage} 回调。与 `src/toolset/chat.ts`（按姓名打开会话等业务）无关。
  */
 import type { Browser, Page } from 'puppeteer-core';
-import { BOSS_CHAT_INDEX_URL, isBossChatShellUrl } from './auth.js';
+import {
+  assertBossLoggedInFromPage,
+  BOSS_CHAT_INDEX_URL,
+  isBossChatShellUrl,
+} from './auth.js';
 import {
   ensureBrowserSession,
   getBrowserRef,
@@ -12,7 +16,6 @@ import {
 } from '../browser/browser_session.js';
 import { CONTEXT_DESTROY_RETRY_MS } from '../browser/human_delay.js';
 import { sleepRandom } from '../browser/timing.js';
-import { assertBossCliAvailable } from './boss_availability.js';
 import { installBossPageGuards } from './boss_page_guards.js';
 import { withBossSessionLock } from './boss_session_lock.js';
 
@@ -127,7 +130,7 @@ async function ensureMenuListMountedAfterLoad(page: Page): Promise<void> {
 }
 
 /**
- * 在已连接浏览器、且当前页为 Boss 主壳（含侧栏 `.menu-list`）的前提下执行回调。
+ * 在已连接浏览器、确认真实登录信号、且当前页为 Boss 主壳（含侧栏 `.menu-list`）的前提下执行回调。
  * 默认会先按 URL 确保落在 `/web/chat/*` 主壳页（已在主壳子页则保留原路径，否则跳回沟通页 `/web/chat/index`），
  * 再校验侧栏；需要严格使用当前页面的命令可通过 options 关闭这些预检查。
  */
@@ -135,7 +138,6 @@ export async function withBossSessionPage<T>(
   callback: (page: Page) => Promise<T>,
   options: BossSessionPageOptions = {},
 ): Promise<T> {
-  await assertBossCliAvailable();
   const shouldEnsureChatShell = options.ensureChatShell !== false;
   const shouldEnsureMenuList = options.ensureMenuList !== false;
 
@@ -171,6 +173,7 @@ export async function withBossSessionPage<T>(
       if (shouldEnsureChatShell) {
         await ensureBossChatShellUrlBeforeMenuList(page);
       }
+      await assertBossLoggedInFromPage(page);
       if (SHOULD_DISABLE_JS) {
         await page.setJavaScriptEnabled(false);
       }

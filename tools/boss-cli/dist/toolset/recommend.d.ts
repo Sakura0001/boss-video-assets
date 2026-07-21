@@ -32,5 +32,7 @@ export declare function markGreetProduced(before: RecommendCandidate[], after: R
  * 父页随后出现 `c-resume` iframe（如 `source=recommend`）。旧版仅有「在线简历」链接时仍尝试点击链接。
  */
 export declare function openRecommendResumePreview(frame: Frame, target: string): Promise<boolean>;
-export declare function runRecommend(jobKeyword?: string): Promise<string>;
+export declare function runRecommend(jobKeyword?: string, options?: {
+    refresh?: boolean;
+}): Promise<string>;
 //# sourceMappingURL=recommend.d.ts.map

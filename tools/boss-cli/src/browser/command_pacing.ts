@@ -97,9 +97,13 @@ async function writeState(stateFile: string, state: CommandPacingState): Promise
   await mkdir(dirname(stateFile), { recursive: true, mode: 0o700 });
   const temporaryFile = `${stateFile}.${process.pid}.tmp`;
   await writeFile(temporaryFile, JSON.stringify(state), { encoding: 'utf8', mode: 0o600 });
-  await chmod(temporaryFile, 0o600);
+  if (process.platform !== 'win32') {
+    await chmod(temporaryFile, 0o600);
+  }
   await rename(temporaryFile, stateFile);
-  await chmod(stateFile, 0o600);
+  if (process.platform !== 'win32') {
+    await chmod(stateFile, 0o600);
+  }
 }
 
 function lockMeta(): CommandPacingLock {

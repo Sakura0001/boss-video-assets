@@ -680,7 +680,20 @@ export async function runOpenCandidateChat(
     if (!clickPoint) {
       throw new Error(`未能重新定位候选人行：${foundName || targetName}`);
     }
-    await page.mouse.click(clickPoint.x, clickPoint.y, { delay: 40 });
+    // BOSS 聊天列表在部分 Chrome 版本中会吞掉坐标点击；直接触发原生
+    // click，确保 React 绑定的会话切换事件能够触发。
+    await page.evaluate(`(() => {
+      const targetName = ${clickNameLiteral};
+      const exactMatch = ${clickExactLiteral};
+      const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
+      const matches = (value) => exactMatch ? value === targetName : value.includes(targetName);
+      const wrap = Array.from(document.querySelectorAll(".geek-item-wrap"))
+        .find((el) => matches(norm(el.querySelector(".geek-name")?.textContent)));
+      const row = wrap?.querySelector(".geek-item") || wrap;
+      if (!(row instanceof HTMLElement)) return false;
+      row.click();
+      return true;
+    })()`);
 
     await sleepRandom(OPEN_CHAT_AFTER_ROW_CLICK_MS.min, OPEN_CHAT_AFTER_ROW_CLICK_MS.max);
 

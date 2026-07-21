@@ -7,10 +7,12 @@ policy:
     - "approved_application_status_question"
     - "approved_transfer_branch"
     - "approved_wechat_handoff"
+    - "approved_knowledge_gap_wechat_handoff"
+    - "approved_base_hc_or_role_presence"
     - "known_company_job_or_faq_answer"
 
   block_auto_send_when:
-    - "知识库没有明确答案"
+    - "知识库没有明确答案，且候选人尚未通过资格门槛或 evaluate-transfer 结果不是 exchange_wechat（base HC/岗位存在性问题除外，按统一口径回复‘有’）"
     - "无法精确打开候选人会话"
     - "学校、专业、学历或毕业年份不符合或无法识别"
     - "候选人要求未批准的 offer、录用、合同、背调或入职承诺"
@@ -31,3 +33,4 @@ policy:
 notes:
   - "批准的机会话术可以自动发送，但不得扩写为一定录用或一定发 offer。"
   - "用户显式启动自动招人后，无需逐候选人请求发送确认。"
+  - "知识缺口只允许发送批准的转微信话术，不得回答未知问题，也不得绕过资格和转投资格。"
