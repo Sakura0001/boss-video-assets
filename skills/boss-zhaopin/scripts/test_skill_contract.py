@@ -88,6 +88,13 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn('unknown_profile_action: "no_reply"', policy)
         self.assertIn("不要求技术经历", policy)
 
+    def test_base_hc_and_role_presence_answer_and_pending_offer_log_are_present(self):
+        reply = self.reference_text["auto_reply.md"]
+        self.assertIn("某个 base 是否有 HC", reply)
+        self.assertIn("统一回复：`有`", reply)
+        self.assertIn("offer_questions_pending.md", reply)
+        self.assertIn("offer_questions_pending.md", self.all_text)
+
     def test_transfer_stop_and_exchange_rules_are_present(self):
         flow = self.reference_text["candidate_conversion.md"]
         self.assertIn("已投递 ICT 下云软件研发部", flow)

@@ -72,7 +72,7 @@ No technical experience is required. If school, major, degree, or graduation yea
 
 ## Knowledge Gaps
 
-If the installed references do not contain an answer, do not send. Summarize the question and relevant context for the user. After the user confirms a new answer, update this installed skill first, validate it, sync the repository copy, commit, and push.
+For base HC or base-role existence questions, use the approved answer `有`. For other offer questions not covered by the references, do not send; append a redacted summary to `references/offer_questions_pending.md` and surface it for the user's later unified answer. After the user confirms a new answer, update this installed skill first, validate it, sync the repository copy, commit, and push.
 
 ## Runtime and Reports
 
@@ -96,6 +96,7 @@ When asked for a dated report, run `daily-report --date YYYY-MM-DD`. Do not infe
 - Voice and fixed wording: `references/recruiter_voice.md`
 - Job and company facts: `references/company.md`, `references/job_default.md`
 - FAQ: `references/faq_salary.md`, `references/faq_worktime.md`, `references/faq_interview.md`, `references/faq_onboarding.md`
+- Pending offer questions: `references/offer_questions_pending.md`
 - Automation limits and risk: `references/agent.yaml`, `references/school_policy.yaml`, `references/risk_policy.yaml`
 
 ## Verification
