@@ -87,6 +87,12 @@ async function readCurrentRecommendJobLabel(frame) {
     return norm(document.querySelector(".job-selecter-wrap .ui-dropmenu-label")?.textContent);
   })()`));
 }
+export function recommendJobLabelMatches(currentLabel, keyword) {
+    const normalize = (value) => value.replace(/\s+/g, "").trim().toLowerCase();
+    const current = normalize(currentLabel);
+    const expected = normalize(keyword);
+    return Boolean(current && expected && current.includes(expected));
+}
 async function waitForRecommendJobDropdownReady(frame) {
     await frame.waitForFunction(`(() => {
       const options = document.querySelector(".job-selecter-options");
@@ -123,6 +129,10 @@ export async function selectRecommendJob(frame, keyword) {
     const kw = keyword.trim();
     if (!kw) {
         return readCurrentRecommendJobLabel(frame);
+    }
+    const currentLabel = await readCurrentRecommendJobLabel(frame);
+    if (recommendJobLabelMatches(currentLabel, kw)) {
+        return currentLabel;
     }
     const kwLiteral = JSON.stringify(kw);
     const opened = (await frame.evaluate(`(() => {

@@ -146,6 +146,17 @@ async function readCurrentRecommendJobLabel(frame: Frame): Promise<string> {
   })()`)) as string;
 }
 
+export function recommendJobLabelMatches(
+  currentLabel: string,
+  keyword: string,
+): boolean {
+  const normalize = (value: string) =>
+    value.replace(/\s+/g, "").trim().toLowerCase();
+  const current = normalize(currentLabel);
+  const expected = normalize(keyword);
+  return Boolean(current && expected && current.includes(expected));
+}
+
 async function waitForRecommendJobDropdownReady(frame: Frame): Promise<void> {
   await frame.waitForFunction(
     `(() => {
@@ -196,6 +207,10 @@ export async function selectRecommendJob(frame: Frame, keyword: string): Promise
   const kw = keyword.trim();
   if (!kw) {
     return readCurrentRecommendJobLabel(frame);
+  }
+  const currentLabel = await readCurrentRecommendJobLabel(frame);
+  if (recommendJobLabelMatches(currentLabel, kw)) {
+    return currentLabel;
   }
   const kwLiteral = JSON.stringify(kw);
 

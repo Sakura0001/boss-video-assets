@@ -25,6 +25,7 @@ export declare function dedupeRecommendCandidates(candidates: RecommendCandidate
 export declare function serializeRecommendResult(job: string, candidates: RecommendCandidate[]): string;
 export declare function assertGreetVerified(candidates: RecommendCandidate[], geekId: string, name: string): RecommendCandidate;
 export declare function isBossChatRecommendUrl(url: string): boolean;
+export declare function recommendJobLabelMatches(currentLabel: string, keyword: string): boolean;
 export declare function selectRecommendJob(frame: Frame, keyword: string): Promise<string>;
 export declare function ensureInRecommendPage(page: Page): Promise<Frame>;
 /**

@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   assertGreetVerified,
   dedupeRecommendCandidates,
+  recommendJobLabelMatches,
   serializeRecommendResult,
 } from '../dist/toolset/recommend.js';
 
@@ -62,6 +63,21 @@ test('serializes the selected job and structured candidate fields', () => {
       degree: '硕士',
     },
   ]);
+});
+
+test('reuses the current recommendation job when it already matches', () => {
+  assert.equal(
+    recommendJobLabelMatches(
+      'ai应用研发工程师 _ 上海 25-30K',
+      'ai应用研发工程师',
+    ),
+    true,
+  );
+  assert.equal(
+    recommendJobLabelMatches('数据库研发工程师', 'ai应用研发工程师'),
+    false,
+  );
+  assert.equal(recommendJobLabelMatches('', 'ai应用研发工程师'), false);
 });
 
 test('verifies greet only after the exact stable id becomes unavailable', () => {
