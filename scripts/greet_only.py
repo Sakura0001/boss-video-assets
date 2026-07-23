@@ -3,9 +3,11 @@
 import argparse
 import json
 import os
+import random
 import re
 import subprocess
 import sys
+import time
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
@@ -18,6 +20,8 @@ SHANGHAI = ZoneInfo("Asia/Shanghai")
 DEFAULT_JOB = "ai应用研发工程师"
 DEFAULT_TARGET = 150
 DEFAULT_MAX_SCANS = 150
+MIN_CANDIDATE_DELAY_SECONDS = 1.0
+MAX_CANDIDATE_DELAY_SECONDS = 2.0
 REQUIRED_MESSAGE_HEADINGS = (
     "真人化说明",
     "一条合并岗位介绍",
@@ -517,6 +521,9 @@ class CampaignRunner:
         target: int,
         max_scans: int,
         now: Callable[[], datetime],
+        sleep: Callable[[float], None] = time.sleep,
+        random_delay: Callable[[float, float], float] = random.uniform,
+        monotonic: Callable[[], float] = time.monotonic,
     ):
         if target < 1 or target > 150:
             raise CampaignError("目标招呼数必须在 1 到 150 之间")
@@ -532,6 +539,9 @@ class CampaignRunner:
         self.target = target
         self.max_scans = max_scans
         self.now = now
+        self.sleep = sleep
+        self.random_delay = random_delay
+        self.monotonic = monotonic
 
     def _now(self) -> datetime:
         value = self.now()
@@ -636,6 +646,14 @@ class CampaignRunner:
                 continue
 
             eligible_candidate, eligibility = selected
+            candidate_delay = self.random_delay(
+                MIN_CANDIDATE_DELAY_SECONDS,
+                MAX_CANDIDATE_DELAY_SECONDS,
+            )
+            if not MIN_CANDIDATE_DELAY_SECONDS <= candidate_delay <= MAX_CANDIDATE_DELAY_SECONDS:
+                raise CampaignError("候选人随机等待时间超出 1–2 秒安全范围")
+            self.sleep(candidate_delay)
+            workflow_started = self.monotonic()
             action_time = self._assert_send_window().isoformat()
             self.boss.greet(eligible_candidate, self.job)
             self.store.record_greeted(
@@ -650,6 +668,7 @@ class CampaignRunner:
                 eligibility,
                 self._now().isoformat(),
             )
+            workflow_seconds = self.monotonic() - workflow_started
             print(
                 json.dumps(
                     {
@@ -657,6 +676,8 @@ class CampaignRunner:
                         "count": self.store.greeting_count(date),
                         "target": self.target,
                         "scanned": scanned,
+                        "delaySeconds": round(candidate_delay, 3),
+                        "workflowSeconds": round(workflow_seconds, 3),
                     },
                     ensure_ascii=False,
                 ),

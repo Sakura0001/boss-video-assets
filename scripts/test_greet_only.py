@@ -203,6 +203,7 @@ class CampaignRunnerTests(unittest.TestCase):
         )
         self.messages = ("知识库一", "知识库二", "知识库三")
         self.now = lambda: datetime(2026, 7, 23, 10, 0, tzinfo=SHANGHAI)
+        self.delays = []
 
     def runner(self, boss, store, target=150, max_scans=150):
         return CampaignRunner(
@@ -214,6 +215,9 @@ class CampaignRunnerTests(unittest.TestCase):
             target=target,
             max_scans=max_scans,
             now=self.now,
+            sleep=self.delays.append,
+            random_delay=lambda low, high: 1.25,
+            monotonic=lambda: 10.0,
         )
 
     def test_refreshes_after_ten_distinct_unqualified_candidates(self):
@@ -251,6 +255,7 @@ class CampaignRunnerTests(unittest.TestCase):
         self.assertEqual(boss.sent, list(self.messages))
         self.assertEqual(len(boss.chat_calls), 6)
         self.assertEqual(store.states[0][1], "waiting_resume")
+        self.assertEqual(self.delays, [1.25])
 
     def test_keeps_unprocessed_candidates_available_after_one_greeting(self):
         first = candidate(geek_id="first", name="第一位")
