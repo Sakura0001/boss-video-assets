@@ -4,7 +4,7 @@ import { runGetCandidateList } from './list.js';
 import { runListOpenPositions } from './jd.js';
 import { runOpenCandidateChat, runOpenCandidateChatByIndex } from './chat.js';
 import { runChatActionOnCurrentConversation, } from './action.js';
-import { runSendChatMessage } from './send.js';
+import { runSendChatMessage, runSendChatMessageSequence, } from './send.js';
 import { withBossSessionPage } from '../common/boss_session_page.js';
 import { runBossSearch, runBossSearchSet } from './deep-search.js';
 import { runNormalSearch } from './normal-search.js';
@@ -39,6 +39,9 @@ export async function implSendMessage(params) {
         text: params.text || undefined,
         requestResume: params.requestResume,
     });
+}
+export async function implSendMessageSequence(params) {
+    return runSendChatMessageSequence(params);
 }
 export async function implListPositions() {
     return runListOpenPositions();

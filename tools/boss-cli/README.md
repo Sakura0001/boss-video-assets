@@ -68,6 +68,7 @@ boss help
 | `boss chat <姓名> [--strict]` | 打开指定候选人会话 |
 | `boss chat [姓名] --index <序号> [--unread] [--strict]` | 按 `boss list` 输出序号打开会话；同名候选人建议用序号 |
 | `boss send [--text <内容>]` | 向当前会话发送消息 |
+| `boss send-sequence <姓名> --job <岗位> --messages-json <JSON数组> --json` | 在一次精确会话中发送并验证三条主动招呼消息（供 Python 执行器调用） |
 | `boss action <操作>` | 索要简历 / 不合适 / 备注 / 交换微信等 |
 | `boss recommend [岗位关键字] [--refresh] [--json]` | 读取推荐候选人列表；JSON 模式包含稳定候选人 ID |
 | `boss search [关键词]` | 常规搜索牛人列表 |

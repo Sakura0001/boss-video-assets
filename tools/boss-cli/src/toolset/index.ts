@@ -7,7 +7,10 @@ import {
   runChatActionOnCurrentConversation,
   type ChatPageAction,
 } from './action.js';
-import { runSendChatMessage } from './send.js';
+import {
+  runSendChatMessage,
+  runSendChatMessageSequence,
+} from './send.js';
 import { withBossSessionPage } from '../common/boss_session_page.js';
 import { runBossSearch, runBossSearchSet } from './deep-search.js';
 import { runNormalSearch } from './normal-search.js';
@@ -69,6 +72,15 @@ export async function implSendMessage(params: {
   });
 }
 
+export async function implSendMessageSequence(params: {
+  candidateName: string;
+  jobKeyword: string;
+  messages: string[];
+  json?: boolean;
+}): Promise<string> {
+  return runSendChatMessageSequence(params);
+}
+
 export async function implListPositions(): Promise<string> {
   return runListOpenPositions();
 }
@@ -124,6 +136,7 @@ export async function implRecommendGreet(opts: {
   candidateId?: string;
   jobKeyword?: string;
   json?: boolean;
+  automation?: boolean;
 }): Promise<string> {
   return runRecommendGreet(opts);
 }

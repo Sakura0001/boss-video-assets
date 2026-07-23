@@ -12,10 +12,14 @@ import {
 
 test('classifies greet as initial outreach and other Boss commands as normal', () => {
   assert.equal(getBossCommandPacingProfile('greet'), 'initial_outreach');
+  assert.equal(getBossCommandPacingProfile('automation-recommend'), 'automated_outreach');
+  assert.equal(getBossCommandPacingProfile('automation-greet'), 'automated_outreach');
+  assert.equal(getBossCommandPacingProfile('send-sequence'), 'automated_outreach');
   assert.equal(getBossCommandPacingProfile('list'), 'normal');
   assert.equal(getBossCommandPacingProfile('send'), 'normal');
   assert.equal(getBossCommandPacingProfile('help'), undefined);
   assert.deepEqual(BOSS_COMMAND_PACING_PROFILES.initial_outreach, { minMs: 4_000, maxMs: 6_000 });
+  assert.deepEqual(BOSS_COMMAND_PACING_PROFILES.automated_outreach, { minMs: 1_000, maxMs: 2_000 });
   assert.deepEqual(BOSS_COMMAND_PACING_PROFILES.normal, { minMs: 6_000, maxMs: 10_000 });
 });
 

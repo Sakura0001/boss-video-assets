@@ -173,6 +173,12 @@ py -3 .\scripts\greet_only.py --execute --job "ai应用研发工程师" --target
 时执行推荐页刷新。每位候选人操作前会随机等待 1–2 秒，进度输出会显示
 本次等待时间和该候选人的完整流程耗时。它不会调用 Claude、处理未读、
 执行跟进或交换微信。
+输出中的 `selectionSeconds`、`workflowSeconds` 和 `cycleSeconds` 分别表示
+筛选、招呼与发信、以及完整候选人周期耗时。
+
+每位候选人的三条消息只打开一次精确会话，并在同一浏览器会话内逐条发送
+和验证；不会为每条消息重新启动一次聊天命令。用户只运行这个 Python 脚本，
+无需另外执行 `boss recommend`、`boss greet`、`boss chat` 或 `boss send`。
 
 脚本运行期间：
 

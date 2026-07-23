@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import time
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
@@ -102,6 +103,30 @@ class CampaignResult:
 
 def _normalize(value: str) -> str:
     return re.sub(r"\s+", "", value).lower()
+
+
+def _contains_exact_school_token(text: str, token: str) -> bool:
+    if not text or not token:
+        return False
+    flags = re.IGNORECASE if token.isascii() else 0
+    for match in re.finditer(re.escape(token), text, flags):
+        if token.isascii():
+            before = text[match.start() - 1] if match.start() > 0 else ""
+            after = text[match.end()] if match.end() < len(text) else ""
+            if before and before.isascii() and before.isalnum():
+                continue
+            if after and after.isascii() and after.isalnum():
+                continue
+            return True
+        if match.end() >= len(text):
+            return True
+        following = text[match.end()]
+        if following.isspace():
+            return True
+        category = unicodedata.category(following)
+        if category.startswith(("P", "S", "N")):
+            return True
+    return False
 
 
 def _extract_inline_code_after_heading(markdown: str, heading: str) -> str:
@@ -217,12 +242,11 @@ class EligibilityPolicy:
 
     def _find_school(self, text: str) -> str:
         matches: List[Tuple[int, str]] = []
-        normalized = _normalize(text)
         for school in self.schools:
-            if _normalize(school) in normalized:
+            if _contains_exact_school_token(text, school):
                 matches.append((len(_normalize(school)), school))
         for alias, official in self.aliases.items():
-            if _normalize(alias) in normalized:
+            if _contains_exact_school_token(text, alias):
                 matches.append((len(_normalize(alias)), official))
         if not matches:
             return ""
@@ -339,7 +363,7 @@ class BossCli:
         return result.stdout.strip()
 
     def recommend(self, job: str, refresh: bool) -> List[Candidate]:
-        args = ["recommend", job, "--json"]
+        args = ["recommend", job, "--json", "--automation"]
         if refresh:
             args.append("--refresh")
         raw = self._run(args)
@@ -375,6 +399,7 @@ class BossCli:
                 "--job",
                 job,
                 "--json",
+                "--automation",
             ]
         )
         try:
@@ -391,24 +416,35 @@ class BossCli:
         if payload.get("name") != candidate.name:
             raise CampaignError("打招呼结果候选人姓名不匹配")
 
-    def open_exact_chat(self, candidate: Candidate, job: str) -> str:
-        output = self._run(["chat", candidate.name, "--strict"])
-        required = (
-            f"成功进入候选人聊天：{candidate.name}",
-            f"姓名: {candidate.name}",
-            f"沟通职位: {job}",
+    def send_sequence(
+        self,
+        candidate: Candidate,
+        job: str,
+        messages: Tuple[str, str, str],
+    ) -> None:
+        raw = self._run(
+            [
+                "send-sequence",
+                candidate.name,
+                "--job",
+                job,
+                "--messages-json",
+                json.dumps(list(messages), ensure_ascii=False),
+                "--json",
+            ]
         )
-        missing = [item for item in required if item not in output]
-        if missing:
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError as exc:
             raise CampaignError(
-                f"精确会话验证失败，缺少：{' / '.join(missing)}"
-            )
-        return output
-
-    def send(self, message: str) -> None:
-        output = self._run(["send", "--text", message])
-        if f"已发送消息：{message}" not in output:
-            raise CampaignError("消息发送结果无法验证")
+                "boss send-sequence --json 返回了无效 JSON"
+            ) from exc
+        if payload.get("name") != candidate.name:
+            raise CampaignError("消息序列结果候选人姓名不匹配")
+        if job not in str(payload.get("job") or ""):
+            raise CampaignError("消息序列结果岗位不匹配")
+        if payload.get("messagesVerified") != 3:
+            raise CampaignError("三条知识库消息未全部验证")
 
 
 class RuntimeStoreCli:
@@ -556,15 +592,8 @@ class CampaignRunner:
         return current
 
     def _send_messages(self, candidate: Candidate) -> None:
-        for message in self.messages:
-            self._assert_send_window()
-            self.boss.open_exact_chat(candidate, self.job)
-            self.boss.send(message)
-            conversation = self.boss.open_exact_chat(candidate, self.job)
-            if message not in conversation:
-                raise CampaignError(
-                    f"候选人 {candidate.name} 的消息发送后无法在会话中验证"
-                )
+        self._assert_send_window()
+        self.boss.send_sequence(candidate, self.job, self.messages)
 
     def run(self) -> CampaignResult:
         current = self._assert_send_window()
@@ -579,6 +608,7 @@ class CampaignRunner:
         refreshed = 0
         consecutive_empty_batches = 0
         max_empty_batches = max(1, (self.max_scans + 9) // 10)
+        search_started = self.monotonic()
 
         while True:
             current_count = self.store.greeting_count(date)
@@ -646,6 +676,7 @@ class CampaignRunner:
                 continue
 
             eligible_candidate, eligibility = selected
+            selection_seconds = self.monotonic() - search_started
             candidate_delay = self.random_delay(
                 MIN_CANDIDATE_DELAY_SECONDS,
                 MAX_CANDIDATE_DELAY_SECONDS,
@@ -669,6 +700,7 @@ class CampaignRunner:
                 self._now().isoformat(),
             )
             workflow_seconds = self.monotonic() - workflow_started
+            cycle_seconds = selection_seconds + candidate_delay + workflow_seconds
             print(
                 json.dumps(
                     {
@@ -676,13 +708,16 @@ class CampaignRunner:
                         "count": self.store.greeting_count(date),
                         "target": self.target,
                         "scanned": scanned,
+                        "selectionSeconds": round(selection_seconds, 3),
                         "delaySeconds": round(candidate_delay, 3),
                         "workflowSeconds": round(workflow_seconds, 3),
+                        "cycleSeconds": round(cycle_seconds, 3),
                     },
                     ensure_ascii=False,
                 ),
                 flush=True,
             )
+            search_started = self.monotonic()
 
 
 class CampaignLock:

@@ -5,6 +5,7 @@ import { BOSS_COMMAND_PACING_LOCK_FILE, BOSS_COMMAND_PACING_STATE_FILE, } from '
 import { randomIntInclusive, sleep } from './timing.js';
 export const BOSS_COMMAND_PACING_PROFILES = {
     initial_outreach: { minMs: 4_000, maxMs: 6_000 },
+    automated_outreach: { minMs: 1_000, maxMs: 2_000 },
     normal: { minMs: 6_000, maxMs: 10_000 },
     idle_unread_check: { minMs: 30_000, maxMs: 60_000 },
 };
@@ -25,6 +26,11 @@ const NORMAL_BOSS_COMMANDS = new Set([
 const LOCK_WAIT_MAX_MS = 30_000;
 const LOCK_POLL_MS = 100;
 export function getBossCommandPacingProfile(command) {
+    if (command === 'automation-recommend' ||
+        command === 'automation-greet' ||
+        command === 'send-sequence') {
+        return 'automated_outreach';
+    }
     if (command === 'greet') {
         return 'initial_outreach';
     }
@@ -44,6 +50,7 @@ function isPacingState(value) {
         Number.isFinite(state.nextAllowedAt) &&
         typeof state.lastCommand === 'string' &&
         (state.lastProfile === 'initial_outreach' ||
+            state.lastProfile === 'automated_outreach' ||
             state.lastProfile === 'normal' ||
             state.lastProfile === 'idle_unread_check'));
 }

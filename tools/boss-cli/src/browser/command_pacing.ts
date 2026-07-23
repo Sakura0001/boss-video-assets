@@ -7,10 +7,15 @@ import {
 } from '../config.js';
 import { randomIntInclusive, sleep } from './timing.js';
 
-export type BossCommandPacingProfile = 'initial_outreach' | 'normal' | 'idle_unread_check';
+export type BossCommandPacingProfile =
+  | 'initial_outreach'
+  | 'automated_outreach'
+  | 'normal'
+  | 'idle_unread_check';
 
 export const BOSS_COMMAND_PACING_PROFILES = {
   initial_outreach: { minMs: 4_000, maxMs: 6_000 },
+  automated_outreach: { minMs: 1_000, maxMs: 2_000 },
   normal: { minMs: 6_000, maxMs: 10_000 },
   idle_unread_check: { minMs: 30_000, maxMs: 60_000 },
 } as const;
@@ -57,6 +62,13 @@ export type CommandPacingDependencies = {
 export function getBossCommandPacingProfile(
   command: string,
 ): BossCommandPacingProfile | undefined {
+  if (
+    command === 'automation-recommend' ||
+    command === 'automation-greet' ||
+    command === 'send-sequence'
+  ) {
+    return 'automated_outreach';
+  }
   if (command === 'greet') {
     return 'initial_outreach';
   }
@@ -79,6 +91,7 @@ function isPacingState(value: unknown): value is CommandPacingState {
     Number.isFinite(state.nextAllowedAt) &&
     typeof state.lastCommand === 'string' &&
     (state.lastProfile === 'initial_outreach' ||
+      state.lastProfile === 'automated_outreach' ||
       state.lastProfile === 'normal' ||
       state.lastProfile === 'idle_unread_check')
   );

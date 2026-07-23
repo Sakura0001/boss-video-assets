@@ -5,7 +5,7 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { detachBrowserSession, getBossCommandPacingProfile, runPacedBossCommand, } from '../browser/index.js';
-import { implChatAction, implLogin, implListCandidates, implListUnreadCandidates, implOpenChatByIndex, implListPositions, implListPositionsWithOptions, implNormalSearch, implOpenChat, implRecommend, implPreview, implRecommendGreet, implSetBaiduCredentials, implBossSearch, implSendMessage, } from '../toolset/index.js';
+import { implChatAction, implLogin, implListCandidates, implListUnreadCandidates, implOpenChatByIndex, implListPositions, implListPositionsWithOptions, implNormalSearch, implOpenChat, implRecommend, implPreview, implRecommendGreet, implSetBaiduCredentials, implBossSearch, implSendMessage, implSendMessageSequence, } from '../toolset/index.js';
 import { printBossInteractiveBanner } from './banner.js';
 import { printPackageUpdateNoticeIfDue, printVersionInfo, runPackageUpdate, } from './version.js';
 class CliError extends Error {
@@ -132,6 +132,8 @@ function printHelp() {
   boss send [--text <内容>] [-t <内容>] [--request-resume]
       仅发送文本消息（等价于在当前会话输入框发送后回车）
       --request-resume：发送后延迟片刻自动执行「求简历」操作
+  boss send-sequence <姓名> --job <岗位> --messages-json <JSON数组> --json
+      在一次精确会话中依次发送并验证三条消息；供 Python 主动招呼执行器调用
   boss positions
       读取当前职位列表（含开放/待开放/已关闭状态）
   boss jd <name>
@@ -426,6 +428,37 @@ export async function executeCommand(argv) {
         const requestResume = flags.has('request-resume');
         return runWithBossCommandPacing(cmd, () => implSendMessage({ text, requestResume }));
     }
+    if (cmd === 'send-sequence') {
+        const { rest, flags, opts } = parseOpts(tail);
+        const unsupportedFlags = [...flags].filter((flag) => flag !== 'json');
+        const unsupportedOpts = Object.keys(opts).filter((key) => key !== 'job' && key !== 'messages-json');
+        const candidateName = rest.join(' ').trim();
+        const jobKeyword = (opts.job ?? '').trim();
+        const rawMessages = (opts['messages-json'] ?? '').trim();
+        if (unsupportedFlags.length > 0 ||
+            unsupportedOpts.length > 0 ||
+            !candidateName ||
+            !jobKeyword ||
+            !rawMessages) {
+            die('❌ 用法: send-sequence <姓名> --job <岗位> --messages-json <JSON数组> [--json]');
+        }
+        let messages;
+        try {
+            messages = JSON.parse(rawMessages);
+        }
+        catch {
+            die('❌ send-sequence --messages-json 必须是有效 JSON 数组');
+        }
+        if (!Array.isArray(messages) || !messages.every((message) => typeof message === 'string')) {
+            die('❌ send-sequence --messages-json 必须是字符串数组');
+        }
+        return runWithBossCommandPacing(cmd, () => implSendMessageSequence({
+            candidateName,
+            jobKeyword,
+            messages,
+            json: flags.has('json'),
+        }));
+    }
     if (cmd === 'positions') {
         const { rest, opts, flags } = parseOpts(tail);
         if (rest.length > 0 || Object.keys(opts).length > 0 || flags.size > 0) {
@@ -483,19 +516,20 @@ export async function executeCommand(argv) {
         if (rest[0] === 'preview') {
             die('❌ 请改用: boss preview <姓名>（已不再使用 recommend preview）');
         }
-        const unsupportedFlags = [...flags].filter((flag) => flag !== 'refresh' && flag !== 'json');
+        const unsupportedFlags = [...flags].filter((flag) => flag !== 'refresh' && flag !== 'json' && flag !== 'automation');
         if (Object.keys(opts).length > 0 || unsupportedFlags.length > 0) {
             die('❌ 用法: recommend [岗位关键字] [--refresh] [--json]');
         }
         const jobKeyword = rest.join(' ').trim();
-        return runWithBossCommandPacing(cmd, () => implRecommend(jobKeyword || undefined, {
+        const pacingCommand = flags.has('automation') ? 'automation-recommend' : cmd;
+        return runWithBossCommandPacing(pacingCommand, () => implRecommend(jobKeyword || undefined, {
             refresh: flags.has('refresh'),
             json: flags.has('json'),
         }));
     }
     if (cmd === 'greet') {
         const { rest, opts, flags } = parseOpts(tail);
-        const unsupportedFlags = [...flags].filter((flag) => flag !== 'json');
+        const unsupportedFlags = [...flags].filter((flag) => flag !== 'json' && flag !== 'automation');
         if (unsupportedFlags.length > 0) {
             die('❌ 用法: greet <姓名> [--id <候选人ID>] [--job <岗位关键字>] [--json]');
         }
@@ -509,11 +543,13 @@ export async function executeCommand(argv) {
         if (!target) {
             die('❌ 用法: greet <姓名> [--id <候选人ID>] [--job <岗位关键字>] [--json]');
         }
-        return runWithBossCommandPacing(cmd, () => implRecommendGreet({
+        const pacingCommand = flags.has('automation') ? 'automation-greet' : cmd;
+        return runWithBossCommandPacing(pacingCommand, () => implRecommendGreet({
             candidateTarget: target,
             candidateId: candidateId || undefined,
             jobKeyword: jobKeyword || undefined,
             json: flags.has('json'),
+            automation: flags.has('automation'),
         }));
     }
     die(`❌ 未知命令 “${argv[0]}”。输入 help 查看用法。`);

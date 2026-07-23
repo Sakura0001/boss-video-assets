@@ -19,6 +19,12 @@ export declare function implSendMessage(params: {
     text: string;
     requestResume?: boolean;
 }): Promise<string>;
+export declare function implSendMessageSequence(params: {
+    candidateName: string;
+    jobKeyword: string;
+    messages: string[];
+    json?: boolean;
+}): Promise<string>;
 export declare function implListPositions(): Promise<string>;
 export declare function implListPositionsWithOptions(opts: {
     detail?: boolean;
@@ -48,6 +54,7 @@ export declare function implRecommendGreet(opts: {
     candidateId?: string;
     jobKeyword?: string;
     json?: boolean;
+    automation?: boolean;
 }): Promise<string>;
 export { implSetBaiduCredentials } from './baidu_credentials.js';
 //# sourceMappingURL=index.d.ts.map

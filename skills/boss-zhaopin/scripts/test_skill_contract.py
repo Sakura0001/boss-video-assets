@@ -87,6 +87,8 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn('计算机科学与技术', policy)
         self.assertIn('专业名称不要求逐字命中', policy)
         self.assertIn('语义上能明确判断为计算机类', policy)
+        self.assertIn('必须作为独立字段完整命中', policy)
+        self.assertIn('吉林大学交通学院不得按吉林大学命中', policy)
         self.assertIn('unknown_profile_action: "no_reply"', policy)
         self.assertIn("不要求技术经历", policy)
 
@@ -152,6 +154,8 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn("boss recommend <岗位关键字> --refresh", greet)
         self.assertIn("max_candidates_per_run: 150", greet)
         self.assertIn("不得无限循环或快速重试", greet)
+        self.assertIn("只打开一次精确会话", greet)
+        self.assertIn("不得重复离开并重新进入会话", greet)
         self.assertIn("boss recommend [岗位关键字] --refresh", cli)
 
     def test_greeting_success_is_recorded_atomically(self):

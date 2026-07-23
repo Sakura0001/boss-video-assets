@@ -8,6 +8,7 @@ import {
 import { closeBossModalIfPresent, waitAndCloseBossModalIfPresent } from '../common/boss_modal.js';
 import {
   closeBossPaywallPopupIfPresent,
+  detectBossPaywallPopup,
   describeBossPaywallPopupIfPresent,
   waitForBossPaywallPopup,
 } from '../common/boss_paywall_popup.js';
@@ -38,8 +39,14 @@ const RECOMMEND_GREET_EXPAND_SETTLE_MS = { min: 600, max: 1400 } as const;
 /** 操作完成后等待并关闭延迟出现的提示弹层（如「当前职位尚未开放」）。 */
 const GREET_MODAL_CLEANUP_WAIT_MAX_MS = 4000;
 
-async function assertNoGreetPaywallPopup(page: Page): Promise<void> {
-  if (await waitForBossPaywallPopup(page, GREET_PAYWALL_WAIT_MAX_MS)) {
+async function assertNoGreetPaywallPopup(
+  page: Page,
+  waitForDelayedPopup = true,
+): Promise<void> {
+  const detected = waitForDelayedPopup
+    ? await waitForBossPaywallPopup(page, GREET_PAYWALL_WAIT_MAX_MS)
+    : await detectBossPaywallPopup(page);
+  if (detected) {
     const paywall = await describeBossPaywallPopupIfPresent(page, 'greet');
     await closeBossPaywallPopupIfPresent(page);
     if (paywall) {
@@ -49,8 +56,15 @@ async function assertNoGreetPaywallPopup(page: Page): Promise<void> {
   }
 }
 
-async function cleanupGreetModalIfPresent(page: Page): Promise<void> {
-  await waitAndCloseBossModalIfPresent(page, GREET_MODAL_CLEANUP_WAIT_MAX_MS);
+async function cleanupGreetModalIfPresent(
+  page: Page,
+  waitForDelayedPopup = true,
+): Promise<void> {
+  if (waitForDelayedPopup) {
+    await waitAndCloseBossModalIfPresent(page, GREET_MODAL_CLEANUP_WAIT_MAX_MS);
+    return;
+  }
+  await closeBossModalIfPresent(page);
 }
 
 export type GreetOptions = {
@@ -58,6 +72,7 @@ export type GreetOptions = {
   candidateId?: string;
   jobKeyword?: string;
   json?: boolean;
+  automation?: boolean;
 };
 
 export async function runRecommendGreet(options: GreetOptions): Promise<string> {
@@ -106,12 +121,18 @@ export async function runRecommendGreet(options: GreetOptions): Promise<string> 
         );
         const before = await readRecommendList(frame);
         const greetResult = await clickGreet(frame, t, options.candidateId);
-        await assertNoGreetPaywallPopup(page);
+        const waitForDelayedPopup = options.automation !== true;
+        if (waitForDelayedPopup) {
+          await assertNoGreetPaywallPopup(page, true);
+        }
         await sleepRandom(380, 1000);
+        if (!waitForDelayedPopup) {
+          await assertNoGreetPaywallPopup(page, false);
+        }
         const after = await readRecommendList(frame);
         assertGreetVerified(after, greetResult.geekId, greetResult.name);
         markGreetProduced(before, after);
-        await cleanupGreetModalIfPresent(page);
+        await cleanupGreetModalIfPresent(page, waitForDelayedPopup);
         if (options.json) {
           return JSON.stringify({
             job: selectedJob,

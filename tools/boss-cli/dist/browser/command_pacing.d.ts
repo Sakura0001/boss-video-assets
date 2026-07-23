@@ -1,8 +1,12 @@
-export type BossCommandPacingProfile = 'initial_outreach' | 'normal' | 'idle_unread_check';
+export type BossCommandPacingProfile = 'initial_outreach' | 'automated_outreach' | 'normal' | 'idle_unread_check';
 export declare const BOSS_COMMAND_PACING_PROFILES: {
     readonly initial_outreach: {
         readonly minMs: 4000;
         readonly maxMs: 6000;
+    };
+    readonly automated_outreach: {
+        readonly minMs: 1000;
+        readonly maxMs: 2000;
     };
     readonly normal: {
         readonly minMs: 6000;

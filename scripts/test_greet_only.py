@@ -6,6 +6,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from scripts.greet_only import (
+    BossCli,
     CampaignError,
     CampaignRunner,
     Candidate,
@@ -24,6 +25,7 @@ class FakeBoss:
         self.recommend_calls = []
         self.greeted = []
         self.chat_calls = []
+        self.sequence_calls = []
         self.sent = []
         self.fail_send_at = None
 
@@ -51,6 +53,11 @@ class FakeBoss:
         if self.fail_send_at is not None and len(self.sent) == self.fail_send_at:
             raise CampaignError("send failed")
         self.sent.append(message)
+
+    def send_sequence(self, candidate, job, messages):
+        self.sequence_calls.append((candidate.geek_id, candidate.name, job, messages))
+        for message in messages:
+            self.send(message)
 
 
 class FakeStore:
@@ -133,7 +140,7 @@ class GreetingKnowledgeBaseTests(unittest.TestCase):
 class EligibilityPolicyTests(unittest.TestCase):
     def setUp(self):
         self.policy = EligibilityPolicy(
-            schools=("浙江大学", "中国科学院大学", "上海交通大学"),
+            schools=("浙江大学", "中国科学院大学", "上海交通大学", "吉林大学"),
             aliases={"浙大": "浙江大学", "国科大": "中国科学院大学"},
             majors=("人工智能", "计算机科学与技术", "集成电路工程"),
         )
@@ -182,16 +189,72 @@ class EligibilityPolicyTests(unittest.TestCase):
         self.assertTrue(result.eligible)
         self.assertEqual(result.school, "上海交通大学")
 
+    def test_rejects_longer_school_name_that_contains_target_school(self):
+        for school_text in ("吉林大学交通学院", "吉大交通学院"):
+            result = self.policy.evaluate(
+                candidate(
+                    base_info="27年应届生 / 本科",
+                    experience=f"{school_text} / 人工智能",
+                )
+            )
+            self.assertFalse(result.eligible)
+            self.assertEqual(result.reason, "school_unknown_or_ineligible")
+
+    def test_accepts_exact_school_name_as_an_independent_field(self):
+        result = self.policy.evaluate(
+            candidate(
+                base_info="27年应届生 / 本科",
+                experience="吉林大学 / 人工智能",
+            )
+        )
+        self.assertTrue(result.eligible)
+        self.assertEqual(result.school, "吉林大学")
+
     def test_uses_compact_card_summary_when_no_education_sequence_is_visible(self):
         result = self.policy.evaluate(
             candidate(
                 base_info="27年应届生 / 硕士",
                 experience="",
-                advantage="上海交通大学人工智能方向，2027年毕业",
+                advantage="上海交通大学 / 人工智能方向，2027年毕业",
             )
         )
         self.assertTrue(result.eligible)
         self.assertEqual(result.school, "上海交通大学")
+
+
+class BossCliTests(unittest.TestCase):
+    class CapturingBossCli(BossCli):
+        def __init__(self, outputs):
+            super().__init__(executable="boss")
+            self.outputs = list(outputs)
+            self.calls = []
+
+        def _run(self, arguments):
+            self.calls.append(list(arguments))
+            return self.outputs.pop(0)
+
+    def test_automation_commands_use_fast_pacing_and_one_message_sequence(self):
+        item = candidate(geek_id="stable-id", name="候选人")
+        cli = self.CapturingBossCli(
+            [
+                '{"job":"ai应用研发工程师","candidates":[]}',
+                '{"job":"ai应用研发工程师","name":"候选人","geekId":"stable-id"}',
+                '{"job":"ai应用研发工程师","name":"候选人","messagesVerified":3}',
+            ]
+        )
+
+        cli.recommend("ai应用研发工程师", refresh=False)
+        cli.greet(item, "ai应用研发工程师")
+        cli.send_sequence(
+            item,
+            "ai应用研发工程师",
+            ("知识库一", "知识库二", "知识库三"),
+        )
+
+        self.assertEqual(cli.calls[0][-2:], ["--json", "--automation"])
+        self.assertIn("--automation", cli.calls[1])
+        self.assertEqual(cli.calls[2][0], "send-sequence")
+        self.assertEqual(cli.calls[2].count("send-sequence"), 1)
 
 
 class CampaignRunnerTests(unittest.TestCase):
@@ -253,7 +316,8 @@ class CampaignRunnerTests(unittest.TestCase):
 
         self.assertEqual(result.final_count, 1)
         self.assertEqual(boss.sent, list(self.messages))
-        self.assertEqual(len(boss.chat_calls), 6)
+        self.assertEqual(len(boss.sequence_calls), 1)
+        self.assertEqual(boss.chat_calls, [])
         self.assertEqual(store.states[0][1], "waiting_resume")
         self.assertEqual(self.delays, [1.25])
 

@@ -1,6 +1,6 @@
 import { GREET_PAYWALL_WAIT_MAX_MS, resumeHeight, setTempHeight, sleepRandom, snapshotBossPageViewport, } from '../browser/index.js';
 import { closeBossModalIfPresent, waitAndCloseBossModalIfPresent } from '../common/boss_modal.js';
-import { closeBossPaywallPopupIfPresent, describeBossPaywallPopupIfPresent, waitForBossPaywallPopup, } from '../common/boss_paywall_popup.js';
+import { closeBossPaywallPopupIfPresent, detectBossPaywallPopup, describeBossPaywallPopupIfPresent, waitForBossPaywallPopup, } from '../common/boss_paywall_popup.js';
 import { withBossSessionPage } from '../common/boss_session_page.js';
 import { clickGreetDeepSearch, ensureInDeepSearchPage, isBossChatAiFormUrl, readDeepSearchGeekList, renderGeekListSection, selectAiFormJob, } from './deep-search.js';
 import { assertGreetVerified, clickGreet, assertRecommendPageReady, markGreetProduced, readRecommendList, renderRecommendList, selectRecommendJob, } from './recommend.js';
@@ -9,8 +9,11 @@ const RECOMMEND_GREET_EXPAND_HEIGHT_PX = 3000;
 const RECOMMEND_GREET_EXPAND_SETTLE_MS = { min: 600, max: 1400 };
 /** 操作完成后等待并关闭延迟出现的提示弹层（如「当前职位尚未开放」）。 */
 const GREET_MODAL_CLEANUP_WAIT_MAX_MS = 4000;
-async function assertNoGreetPaywallPopup(page) {
-    if (await waitForBossPaywallPopup(page, GREET_PAYWALL_WAIT_MAX_MS)) {
+async function assertNoGreetPaywallPopup(page, waitForDelayedPopup = true) {
+    const detected = waitForDelayedPopup
+        ? await waitForBossPaywallPopup(page, GREET_PAYWALL_WAIT_MAX_MS)
+        : await detectBossPaywallPopup(page);
+    if (detected) {
         const paywall = await describeBossPaywallPopupIfPresent(page, 'greet');
         await closeBossPaywallPopupIfPresent(page);
         if (paywall) {
@@ -19,8 +22,12 @@ async function assertNoGreetPaywallPopup(page) {
         throw new Error('页面出现 VIP/付费购买弹层，打招呼可能需开通权益或充值直豆。');
     }
 }
-async function cleanupGreetModalIfPresent(page) {
-    await waitAndCloseBossModalIfPresent(page, GREET_MODAL_CLEANUP_WAIT_MAX_MS);
+async function cleanupGreetModalIfPresent(page, waitForDelayedPopup = true) {
+    if (waitForDelayedPopup) {
+        await waitAndCloseBossModalIfPresent(page, GREET_MODAL_CLEANUP_WAIT_MAX_MS);
+        return;
+    }
+    await closeBossModalIfPresent(page);
 }
 export async function runRecommendGreet(options) {
     const t = options.candidateTarget.trim();
@@ -64,12 +71,18 @@ export async function runRecommendGreet(options) {
                 await sleepRandom(RECOMMEND_GREET_EXPAND_SETTLE_MS.min, RECOMMEND_GREET_EXPAND_SETTLE_MS.max);
                 const before = await readRecommendList(frame);
                 const greetResult = await clickGreet(frame, t, options.candidateId);
-                await assertNoGreetPaywallPopup(page);
+                const waitForDelayedPopup = options.automation !== true;
+                if (waitForDelayedPopup) {
+                    await assertNoGreetPaywallPopup(page, true);
+                }
                 await sleepRandom(380, 1000);
+                if (!waitForDelayedPopup) {
+                    await assertNoGreetPaywallPopup(page, false);
+                }
                 const after = await readRecommendList(frame);
                 assertGreetVerified(after, greetResult.geekId, greetResult.name);
                 markGreetProduced(before, after);
-                await cleanupGreetModalIfPresent(page);
+                await cleanupGreetModalIfPresent(page, waitForDelayedPopup);
                 if (options.json) {
                     return JSON.stringify({
                         job: selectedJob,
