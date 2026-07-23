@@ -35,6 +35,7 @@ Before replying to any inbound chat or greeting any recommendation, confirm ever
 - Match only a complete school name or approved alias as an independent field. A longer
   institution name that merely contains an approved school name is not eligible.
 - Major need not match the allowlist text exactly. Accept school-specific names when their meaning clearly indicates a computer-related major or closely matches one direction in `references/school_policy.yaml`; ambiguous or unrelated majors do not qualify.
+- In deterministic automation, resolve non-canonical major names only through `major_aliases` in `references/school_policy.yaml`. Do not invent mappings at runtime; add and validate an approved alias before automating it.
 
 No technical experience is required. If school, major, degree, or graduation year is missing, ambiguous, or ineligible, do not reply and do not explain the internal filter.
 

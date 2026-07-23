@@ -228,19 +228,59 @@ def _parse_allowed_majors(path: Path) -> Tuple[str, ...]:
     return tuple(majors)
 
 
+def _parse_major_aliases(path: Path) -> Dict[str, str]:
+    text = path.read_text(encoding="utf-8")
+    aliases: Dict[str, str] = {}
+    in_aliases = False
+    for raw_line in text.splitlines():
+        if re.match(r"^\s*major_aliases:\s*$", raw_line):
+            in_aliases = True
+            continue
+        if not in_aliases:
+            continue
+        match = re.match(
+            r'^\s+"([^"]+)":\s+"([^"]+)"\s*$',
+            raw_line,
+        )
+        if match:
+            aliases[match.group(1)] = match.group(2)
+            continue
+        if raw_line.strip() and re.match(r"^\s{2}\w", raw_line):
+            break
+    if not aliases:
+        raise CampaignError(f"未从专业知识库读取到专业近义映射：{path}")
+    return aliases
+
+
 @dataclass(frozen=True)
 class EligibilityPolicy:
     schools: Tuple[str, ...]
     aliases: Mapping[str, str]
     majors: Tuple[str, ...]
+    major_aliases: Mapping[str, str]
 
     @classmethod
     def from_files(cls, target_schools: Path, school_policy: Path) -> "EligibilityPolicy":
         schools, aliases = _parse_target_schools(target_schools)
+        majors = _parse_allowed_majors(school_policy)
+        major_aliases = _parse_major_aliases(school_policy)
+        invalid_targets = sorted(
+            {
+                canonical
+                for canonical in major_aliases.values()
+                if canonical not in majors
+            }
+        )
+        if invalid_targets:
+            raise CampaignError(
+                "专业近义映射指向未批准专业："
+                + "、".join(invalid_targets)
+            )
         return cls(
             schools=schools,
             aliases=aliases,
-            majors=_parse_allowed_majors(school_policy),
+            majors=majors,
+            major_aliases=major_aliases,
         )
 
     def _canonical_school(self, value: str) -> str:
@@ -264,12 +304,25 @@ class EligibilityPolicy:
 
     def _find_major(self, text: str) -> str:
         normalized = _normalize(text)
-        matches = [
+        direct_matches = [
             major for major in self.majors if _normalize(major) in normalized
         ]
-        if not matches:
+        if direct_matches:
+            return max(
+                direct_matches,
+                key=lambda item: len(_normalize(item)),
+            )
+        alias_matches = [
+            (alias, canonical)
+            for alias, canonical in self.major_aliases.items()
+            if _normalize(alias) in normalized
+        ]
+        if not alias_matches:
             return ""
-        return max(matches, key=lambda item: len(_normalize(item)))
+        return max(
+            alias_matches,
+            key=lambda item: len(_normalize(item[0])),
+        )[1]
 
     @staticmethod
     def _degree_level(degree: str) -> int:

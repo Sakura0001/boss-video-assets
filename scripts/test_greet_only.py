@@ -163,7 +163,19 @@ class EligibilityPolicyTests(unittest.TestCase):
         self.policy = EligibilityPolicy(
             schools=("浙江大学", "中国科学院大学", "上海交通大学", "吉林大学"),
             aliases={"浙大": "浙江大学", "国科大": "中国科学院大学"},
-            majors=("人工智能", "计算机科学与技术", "集成电路工程"),
+            majors=(
+                "人工智能",
+                "计算机科学与技术",
+                "集成电路工程",
+                "自动化",
+                "网络安全",
+                "电子科学与技术",
+            ),
+            major_aliases={
+                "控制工程": "自动化",
+                "网络空间安全": "网络安全",
+                "微电子学与固体电子学": "电子科学与技术",
+            },
         )
 
     def test_accepts_candidate_when_every_gate_is_visible(self):
@@ -199,6 +211,102 @@ class EligibilityPolicyTests(unittest.TestCase):
         )
         self.assertFalse(result.eligible)
         self.assertEqual(result.reason, "major_unknown_or_ineligible")
+
+    def test_accepts_explicit_major_aliases(self):
+        cases = (
+            ("控制工程", "自动化"),
+            ("网络空间安全", "网络安全"),
+            ("微电子学与固体电子学", "电子科学与技术"),
+        )
+        for source, canonical in cases:
+            with self.subTest(source=source):
+                result = self.policy.evaluate(
+                    candidate(
+                        base_info="27年应届生 / 硕士",
+                        education=(
+                            EducationRecord(
+                                "2024",
+                                "2027",
+                                "浙江大学",
+                                source,
+                                "硕士",
+                            ),
+                        ),
+                    )
+                )
+                self.assertTrue(result.eligible)
+                self.assertEqual(result.major, canonical)
+
+    def test_direct_major_match_takes_priority_over_alias(self):
+        policy = replace(
+            self.policy,
+            major_aliases={"控制工程": "计算机科学与技术"},
+        )
+        result = policy.evaluate(
+            candidate(
+                base_info="27年应届生 / 硕士",
+                education=(
+                    EducationRecord(
+                        "2024",
+                        "2027",
+                        "浙江大学",
+                        "人工智能与控制工程",
+                        "硕士",
+                    ),
+                ),
+            )
+        )
+        self.assertTrue(result.eligible)
+        self.assertEqual(result.major, "人工智能")
+
+    def test_unknown_semantic_neighbor_is_not_guessed(self):
+        result = self.policy.evaluate(
+            candidate(
+                base_info="27年应届生 / 硕士",
+                education=(
+                    EducationRecord(
+                        "2024",
+                        "2027",
+                        "浙江大学",
+                        "材料与化工",
+                        "硕士",
+                    ),
+                ),
+            )
+        )
+        self.assertFalse(result.eligible)
+        self.assertEqual(result.reason, "major_unknown_or_ineligible")
+
+    def test_from_files_rejects_alias_to_unapproved_major(self):
+        schools = """# 目标学校
+
+## 目标学校
+
+1. 浙江大学
+
+## 学校别名
+
+| 标准名称 | 别名 |
+| --- | --- |
+"""
+        policy = """policy:
+  allowed_majors:
+    - "人工智能"
+  major_aliases:
+    "智能科学与技术": "未批准方向"
+  require_technical_experience: false
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            schools_path = root / "target_schools.md"
+            policy_path = root / "school_policy.yaml"
+            schools_path.write_text(schools, encoding="utf-8")
+            policy_path.write_text(policy, encoding="utf-8")
+            with self.assertRaisesRegex(
+                CampaignError,
+                "专业近义映射指向未批准专业",
+            ):
+                EligibilityPolicy.from_files(schools_path, policy_path)
 
     def test_accepts_target_bachelor_school_when_master_school_is_not_target(self):
         result = self.policy.evaluate(
@@ -289,6 +397,25 @@ class EligibilityPolicyTests(unittest.TestCase):
         self.assertFalse(result.eligible)
         self.assertEqual(result.reason, "major_unknown_or_ineligible")
 
+    def test_alias_in_previous_degree_does_not_qualify_current_degree(self):
+        result = self.policy.evaluate(
+            candidate(
+                base_info="27年应届生 / 硕士",
+                education=(
+                    EducationRecord("2024", "2027", "某大学", "气象学", "硕士"),
+                    EducationRecord(
+                        "2020",
+                        "2024",
+                        "浙江大学",
+                        "网络空间安全",
+                        "本科",
+                    ),
+                ),
+            )
+        )
+        self.assertFalse(result.eligible)
+        self.assertEqual(result.reason, "major_unknown_or_ineligible")
+
     def test_candidate_parses_structured_education_from_recommend_json(self):
         item = Candidate.from_mapping(
             {
@@ -361,6 +488,7 @@ class CampaignRunnerTests(unittest.TestCase):
             schools=("浙江大学",),
             aliases={},
             majors=("人工智能",),
+            major_aliases={},
         )
         self.messages = ("知识库一", "知识库二", "知识库三")
         self.now = lambda: datetime(2026, 7, 23, 10, 0, tzinfo=SHANGHAI)
