@@ -55,6 +55,24 @@ py -3 "$SkillRoot\scripts\runtime_store.py" due-followups --as-of $NowIso
 
 先确认 Boss 动作成功，再写事件。失败动作不能计数。
 
+主动打招呼成功后使用 `greeting-complete` 原子写入 `greeted` 事件、长期去重
+和候选人 `greeted` 阶段。不得分别调用 `record-event` 与 `dedupe-add` 模拟
+该动作，以免中断后出现计数和去重不一致。
+
+```text
+macOS / Linux:
+python3 "$SKILL_ROOT/scripts/runtime_store.py" greeting-complete \
+  --candidate-id "<稳定候选人ID>" --display-name "<姓名>" \
+  --greeted-at "<ISO时间>" --job "<岗位>" \
+  --school "<最终学校>" --major "<专业>" --degree "<学历>" --grad-year 2027
+
+Windows PowerShell:
+py -3 "$SkillRoot\scripts\runtime_store.py" greeting-complete `
+  --candidate-id "<稳定候选人ID>" --display-name "<姓名>" `
+  --greeted-at "<ISO时间>" --job "<岗位>" `
+  --school "<最终学校>" --major "<专业>" --degree "<学历>" --grad-year 2027
+```
+
 ## 保留规则
 
 - 候选人执行状态保存三天，之后自动删除。

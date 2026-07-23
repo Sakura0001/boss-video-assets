@@ -154,6 +154,13 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn("不得无限循环或快速重试", greet)
         self.assertIn("boss recommend [岗位关键字] --refresh", cli)
 
+    def test_greeting_success_is_recorded_atomically(self):
+        runtime = self.reference_text["automation_runtime.md"]
+        greet = self.reference_text["auto_greet.md"]
+        self.assertIn("greeting-complete", runtime)
+        self.assertIn("原子", runtime)
+        self.assertIn("greeting-complete", greet)
+
     def test_eight_distinct_followup_variants_exist(self):
         followups = self.reference_text["followups.md"]
         variants = re.findall(r"^\d+\. `([^`]+)`$", followups, re.MULTILINE)

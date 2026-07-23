@@ -21,6 +21,7 @@ import {
   selectAiFormJob,
 } from './deep-search.js';
 import {
+  assertGreetVerified,
   clickGreet,
   assertRecommendPageReady,
   markGreetProduced,
@@ -54,7 +55,9 @@ async function cleanupGreetModalIfPresent(page: Page): Promise<void> {
 
 export type GreetOptions = {
   candidateTarget: string;
+  candidateId?: string;
   jobKeyword?: string;
+  json?: boolean;
 };
 
 export async function runRecommendGreet(options: GreetOptions): Promise<string> {
@@ -68,6 +71,9 @@ export async function runRecommendGreet(options: GreetOptions): Promise<string> 
       await closeBossModalIfPresent(page);
       const url = page.url();
       if (isBossChatAiFormUrl(url)) {
+        if (options.candidateId || options.json) {
+          throw new Error('--id/--json 仅支持推荐列表页，不能在深度搜索页降级执行。');
+        }
         await ensureInDeepSearchPage(page);
         let jobLine = '';
         if (kw) {
@@ -99,12 +105,20 @@ export async function runRecommendGreet(options: GreetOptions): Promise<string> 
           RECOMMEND_GREET_EXPAND_SETTLE_MS.max,
         );
         const before = await readRecommendList(frame);
-        const greetResult = await clickGreet(frame, t);
+        const greetResult = await clickGreet(frame, t, options.candidateId);
         await assertNoGreetPaywallPopup(page);
         await sleepRandom(380, 1000);
         const after = await readRecommendList(frame);
+        assertGreetVerified(after, greetResult.geekId, greetResult.name);
         markGreetProduced(before, after);
         await cleanupGreetModalIfPresent(page);
+        if (options.json) {
+          return JSON.stringify({
+            job: selectedJob,
+            name: greetResult.name,
+            geekId: greetResult.geekId,
+          });
+        }
         return [jobLine, greetResult.message, '', '当前推荐列表（来源分组）：', renderRecommendList(after)].join('\n');
       } finally {
         await resumeHeight(page, savedViewport);

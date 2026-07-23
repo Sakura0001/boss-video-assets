@@ -221,6 +221,54 @@ class RuntimeStoreTest(unittest.TestCase):
             self.store.record_event("greeted", at(8) + timedelta(minutes=index), f"c{index}", {})
         self.assertEqual(self.store.greeting_count("2026-07-10"), 3)
 
+    def test_complete_greeting_updates_count_dedupe_and_candidate_atomically(self):
+        self.store.complete_greeting(
+            candidate_id="candidate-1",
+            display_name="张同学",
+            greeted_at=at(8),
+            job="ai应用研发工程师",
+            school="浙江大学",
+            major="人工智能",
+            degree="博士",
+            grad_year=2027,
+        )
+
+        self.assertEqual(self.store.greeting_count("2026-07-10"), 1)
+        self.assertTrue(self.store.is_deduped("candidate-1", at(9)))
+        candidate = self.store.get_candidate("candidate-1")
+        self.assertEqual(candidate["stage"], "greeted")
+        self.assertEqual(candidate["school"], "浙江大学")
+        self.assertEqual(candidate["last_contact_at"], at(8).isoformat())
+
+    def test_complete_greeting_reuses_an_expired_dedupe_row(self):
+        self.store._db().execute(
+            """
+            INSERT INTO dedupe(candidate_id, first_contact_at, final_status, expires_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                "candidate-expired",
+                "2025-01-01T00:00:00+08:00",
+                "old",
+                "2025-12-31T23:59:59+08:00",
+            ),
+        )
+        self.store._db().commit()
+
+        self.store.complete_greeting(
+            candidate_id="candidate-expired",
+            display_name="王同学",
+            greeted_at=at(8),
+            job="ai应用研发工程师",
+            school="浙江大学",
+            major="人工智能",
+            degree="硕士",
+            grad_year=2027,
+        )
+
+        self.assertEqual(self.store.greeting_count("2026-07-10"), 1)
+        self.assertTrue(self.store.is_deduped("candidate-expired", at(9)))
+
     def test_event_payload_must_be_json_serializable(self):
         with self.assertRaises(TypeError):
             self.store.record_event("greeted", at(8), "c1", {"bad": object()})

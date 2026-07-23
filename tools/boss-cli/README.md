@@ -26,7 +26,7 @@ boss help
 | 场景 | 命令 |
 | --- | --- |
 | Boss直聘批量发消息 | `boss send --text "..."` 配合脚本循环 |
-| Boss直聘自动打招呼 | `boss greet <姓名> [--job <岗位>]` |
+| Boss直聘自动打招呼 | `boss greet <姓名> [--id <候选人ID>] [--job <岗位>] [--json]` |
 | Boss直聘候选人筛选 | `boss list` / `boss list --unread` |
 | Boss直聘脚本自动化 | 本机 Chrome + CDP，Cookie 本地存储 |
 | AI 招聘 Agent | 子进程调用，输出 Agent 友好 |
@@ -69,9 +69,9 @@ boss help
 | `boss chat [姓名] --index <序号> [--unread] [--strict]` | 按 `boss list` 输出序号打开会话；同名候选人建议用序号 |
 | `boss send [--text <内容>]` | 向当前会话发送消息 |
 | `boss action <操作>` | 索要简历 / 不合适 / 备注 / 交换微信等 |
-| `boss recommend [岗位关键字]` | 读取推荐候选人列表 |
+| `boss recommend [岗位关键字] [--refresh] [--json]` | 读取推荐候选人列表；JSON 模式包含稳定候选人 ID |
 | `boss search [关键词]` | 常规搜索牛人列表 |
-| `boss greet <姓名> [--job <岗位>]` | 在当前推荐/深度搜索页对候选人打招呼（不会自动跳转） |
+| `boss greet <姓名> [--id <候选人ID>] [--job <岗位>] [--json]` | 在当前推荐/深度搜索页对候选人打招呼；`--id` / `--json` 仅支持推荐页（不会自动跳转） |
 | `boss preview <姓名>` | 在线简历预览（每日次数有限） |
 | `boss deep-search [岗位关键字] [--core <要求>] [--bonus <加分项>] [--clear-core] [--clear-bonus] [--match]` | 深度搜索表单状态；`--core` / `--bonus` 可重复，并按传入列表同步分组；`--clear-*` 清空分组；默认不输出候选列表，`--match` 输出最新 20 条 |
 | `boss positions` | 读取职位列表 |

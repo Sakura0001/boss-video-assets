@@ -3,7 +3,7 @@ import { closeBossModalIfPresent, waitAndCloseBossModalIfPresent } from '../comm
 import { closeBossPaywallPopupIfPresent, describeBossPaywallPopupIfPresent, waitForBossPaywallPopup, } from '../common/boss_paywall_popup.js';
 import { withBossSessionPage } from '../common/boss_session_page.js';
 import { clickGreetDeepSearch, ensureInDeepSearchPage, isBossChatAiFormUrl, readDeepSearchGeekList, renderGeekListSection, selectAiFormJob, } from './deep-search.js';
-import { clickGreet, assertRecommendPageReady, markGreetProduced, readRecommendList, renderRecommendList, selectRecommendJob, } from './recommend.js';
+import { assertGreetVerified, clickGreet, assertRecommendPageReady, markGreetProduced, readRecommendList, renderRecommendList, selectRecommendJob, } from './recommend.js';
 /** 打招呼前临时拉高父页视口，使 iframe 内更多卡片进入 DOM（与 recommend 列表读取已解耦）。 */
 const RECOMMEND_GREET_EXPAND_HEIGHT_PX = 3000;
 const RECOMMEND_GREET_EXPAND_SETTLE_MS = { min: 600, max: 1400 };
@@ -33,6 +33,9 @@ export async function runRecommendGreet(options) {
             await closeBossModalIfPresent(page);
             const url = page.url();
             if (isBossChatAiFormUrl(url)) {
+                if (options.candidateId || options.json) {
+                    throw new Error('--id/--json 仅支持推荐列表页，不能在深度搜索页降级执行。');
+                }
                 await ensureInDeepSearchPage(page);
                 let jobLine = '';
                 if (kw) {
@@ -60,12 +63,20 @@ export async function runRecommendGreet(options) {
                 await setTempHeight(page, savedViewport, RECOMMEND_GREET_EXPAND_HEIGHT_PX);
                 await sleepRandom(RECOMMEND_GREET_EXPAND_SETTLE_MS.min, RECOMMEND_GREET_EXPAND_SETTLE_MS.max);
                 const before = await readRecommendList(frame);
-                const greetResult = await clickGreet(frame, t);
+                const greetResult = await clickGreet(frame, t, options.candidateId);
                 await assertNoGreetPaywallPopup(page);
                 await sleepRandom(380, 1000);
                 const after = await readRecommendList(frame);
+                assertGreetVerified(after, greetResult.geekId, greetResult.name);
                 markGreetProduced(before, after);
                 await cleanupGreetModalIfPresent(page);
+                if (options.json) {
+                    return JSON.stringify({
+                        job: selectedJob,
+                        name: greetResult.name,
+                        geekId: greetResult.geekId,
+                    });
+                }
                 return [jobLine, greetResult.message, '', '当前推荐列表（来源分组）：', renderRecommendList(after)].join('\n');
             }
             finally {

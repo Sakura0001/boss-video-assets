@@ -108,7 +108,7 @@ export async function implBossSearchSet(opts: {
 
 export async function implRecommend(
   jobKeyword?: string,
-  options: { refresh?: boolean } = {},
+  options: { refresh?: boolean; json?: boolean } = {},
 ): Promise<string> {
   return runRecommend(jobKeyword, options);
 }
@@ -121,7 +121,9 @@ export async function implPreview(opts: {
 
 export async function implRecommendGreet(opts: {
   candidateTarget: string;
+  candidateId?: string;
   jobKeyword?: string;
+  json?: boolean;
 }): Promise<string> {
   return runRecommendGreet(opts);
 }

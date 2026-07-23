@@ -331,6 +331,77 @@ class RuntimeStore:
                 (event_type, _iso(at), candidate_id, payload_json),
             )
 
+    def complete_greeting(
+        self,
+        candidate_id: str,
+        display_name: str,
+        greeted_at: Union[str, datetime],
+        job: str,
+        school: str,
+        major: str,
+        degree: str,
+        grad_year: int,
+    ) -> None:
+        greeted = _coerce_datetime(greeted_at)
+        greeted_iso = greeted.isoformat()
+        expires = (greeted + RUNTIME_TTL).isoformat()
+        dedupe_expires = DEDUPE_EXPIRES_AT.isoformat()
+        payload_json = json.dumps({"job": job}, ensure_ascii=False, sort_keys=True)
+        db = self._db()
+        with db:
+            existing = db.execute(
+                "SELECT 1 FROM dedupe WHERE candidate_id = ? AND expires_at >= ?",
+                (candidate_id, greeted_iso),
+            ).fetchone()
+            if existing is not None:
+                raise ValueError(f"candidate already deduped: {candidate_id}")
+            db.execute(
+                """
+                INSERT INTO candidates(
+                    candidate_id, display_name, stage, school, major, degree,
+                    grad_year, last_contact_at, updated_at, expires_at
+                ) VALUES (?, ?, 'greeted', ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(candidate_id) DO UPDATE SET
+                    display_name=excluded.display_name,
+                    stage='greeted',
+                    school=excluded.school,
+                    major=excluded.major,
+                    degree=excluded.degree,
+                    grad_year=excluded.grad_year,
+                    last_contact_at=excluded.last_contact_at,
+                    manual_takeover=0,
+                    updated_at=excluded.updated_at,
+                    expires_at=excluded.expires_at
+                """,
+                (
+                    candidate_id,
+                    display_name,
+                    school,
+                    major,
+                    degree,
+                    grad_year,
+                    greeted_iso,
+                    greeted_iso,
+                    expires,
+                ),
+            )
+            db.execute(
+                """
+                INSERT INTO dedupe(candidate_id, first_contact_at, final_status, expires_at)
+                VALUES (?, ?, 'greeted', ?)
+                ON CONFLICT(candidate_id) DO UPDATE SET
+                    first_contact_at=excluded.first_contact_at,
+                    final_status='greeted',
+                    expires_at=excluded.expires_at
+                """,
+                (candidate_id, greeted_iso, dedupe_expires),
+            )
+            db.execute(
+                "INSERT INTO events(event_type, occurred_at, candidate_id, payload_json) "
+                "VALUES ('greeted', ?, ?, ?)",
+                (greeted_iso, candidate_id, payload_json),
+            )
+
     def complete_wechat(
         self,
         candidate_id: str,
@@ -598,6 +669,16 @@ def build_parser() -> argparse.ArgumentParser:
     event.add_argument("--at", required=True)
     event.add_argument("--payload", default="{}")
 
+    greeting = sub.add_parser("greeting-complete")
+    greeting.add_argument("--candidate-id", required=True)
+    greeting.add_argument("--display-name", required=True)
+    greeting.add_argument("--greeted-at", required=True)
+    greeting.add_argument("--job", required=True)
+    greeting.add_argument("--school", required=True)
+    greeting.add_argument("--major", required=True)
+    greeting.add_argument("--degree", required=True)
+    greeting.add_argument("--grad-year", type=int, required=True)
+
     decision = sub.add_parser("evaluate-transfer")
     decision.add_argument(
         "--application-target", choices=["none", "cloud_software", "other", "unknown"], required=True
@@ -665,6 +746,18 @@ def main() -> int:
         elif args.command == "record-event":
             store.record_event(args.type, args.at, args.candidate_id, json.loads(args.payload))
             _print_json({"recorded": True})
+        elif args.command == "greeting-complete":
+            store.complete_greeting(
+                candidate_id=args.candidate_id,
+                display_name=args.display_name,
+                greeted_at=args.greeted_at,
+                job=args.job,
+                school=args.school,
+                major=args.major,
+                degree=args.degree,
+                grad_year=args.grad_year,
+            )
+            _print_json({"completed": True})
         elif args.command == "evaluate-transfer":
             result = evaluate_transfer(
                 args.application_target, args.psych_status, args.interview_status, args.written_status

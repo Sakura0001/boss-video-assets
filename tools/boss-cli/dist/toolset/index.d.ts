@@ -38,13 +38,16 @@ export declare function implBossSearchSet(opts: {
 }): Promise<string>;
 export declare function implRecommend(jobKeyword?: string, options?: {
     refresh?: boolean;
+    json?: boolean;
 }): Promise<string>;
 export declare function implPreview(opts: {
     candidateTarget: string;
 }): Promise<string>;
 export declare function implRecommendGreet(opts: {
     candidateTarget: string;
+    candidateId?: string;
     jobKeyword?: string;
+    json?: boolean;
 }): Promise<string>;
 export { implSetBaiduCredentials } from './baidu_credentials.js';
 //# sourceMappingURL=index.d.ts.map

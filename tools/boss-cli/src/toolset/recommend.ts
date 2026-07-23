@@ -25,6 +25,50 @@ export type RecommendCandidate = {
   /** 卡片为灰色「已看过」样式（如 `.candidate-card-wrap.has-viewed` / `.card-inner.has-viewed`） */
   hasViewed: boolean;
 };
+
+export function dedupeRecommendCandidates(
+  candidates: RecommendCandidate[],
+): RecommendCandidate[] {
+  const seenIds = new Set<string>();
+  const result: RecommendCandidate[] = [];
+  for (const candidate of candidates) {
+    if (!candidate.geekId) {
+      continue;
+    }
+    if (seenIds.has(candidate.geekId)) {
+      continue;
+    }
+    seenIds.add(candidate.geekId);
+    result.push(candidate);
+  }
+  return result;
+}
+
+export function serializeRecommendResult(
+  job: string,
+  candidates: RecommendCandidate[],
+): string {
+  return JSON.stringify({
+    job,
+    candidates: dedupeRecommendCandidates(candidates),
+  });
+}
+
+export function assertGreetVerified(
+  candidates: RecommendCandidate[],
+  geekId: string,
+  name: string,
+): RecommendCandidate {
+  const match = candidates.find((candidate) => candidate.geekId === geekId);
+  if (!match) {
+    throw new Error(`打招呼后无法在推荐列表中读回候选人 ${name}（${geekId}）。`);
+  }
+  if (match.canGreet) {
+    throw new Error(`候选人 ${name} 的“打招呼”按钮仍可用，无法确认操作成功。`);
+  }
+  return match;
+}
+
 /** 会话内记录：通过 greet 新出现的推荐卡片（以 geekId 识别） */
 const sessionGreetProducedGeekIds = new Set<string>();
 
@@ -240,7 +284,7 @@ export async function assertRecommendPageReadyForPreview(page: Page): Promise<Fr
 }
 
 export async function readRecommendList(frame: Frame): Promise<RecommendCandidate[]> {
-  return (await frame.evaluate(`(() => {
+  const candidates = (await frame.evaluate(`(() => {
     const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
     const cardSel = ${JSON.stringify(RECOMMEND_CARD_ROOT_SELECTOR)};
     const cards = Array.from(document.querySelectorAll(cardSel));
@@ -306,6 +350,7 @@ export async function readRecommendList(frame: Frame): Promise<RecommendCandidat
       };
     }).filter((x) => x.name);
   })()`)) as RecommendCandidate[];
+  return dedupeRecommendCandidates(candidates);
 }
 
 export function renderRecommendList(candidates: RecommendCandidate[]): string {
@@ -363,11 +408,14 @@ export function renderRecommendList(candidates: RecommendCandidate[]): string {
 export async function clickGreet(
   frame: Frame,
   target: string,
-): Promise<{ message: string }> {
+  targetId?: string,
+): Promise<{ message: string; name: string; geekId: string }> {
   const targetLiteral = JSON.stringify(target.trim());
+  const targetIdLiteral = JSON.stringify((targetId ?? '').trim());
   const result = (await frame.evaluate(
     `(() => {
       const raw = ${targetLiteral};
+      const requestedId = ${targetIdLiteral};
       const norm = (v) => (v ?? "").replace(/\\s+/g, " ").trim();
       const cardSel = ${JSON.stringify(RECOMMEND_CARD_ROOT_SELECTOR)};
       const cards = Array.from(document.querySelectorAll(cardSel));
@@ -375,6 +423,12 @@ export async function clickGreet(
         return { kind: "empty" };
       }
       const targetCard = cards.find((item) => {
+        const inner = item.querySelector(".card-inner") || item;
+        const geekId =
+          inner?.getAttribute("data-geekid") ??
+          inner?.getAttribute("data-geek") ??
+          "";
+        if (requestedId) return geekId === requestedId;
         const name =
           norm(item.querySelector(".name-wrap .name")?.textContent) ||
           norm(item.querySelector(".name")?.textContent);
@@ -424,6 +478,8 @@ export async function clickGreet(
     case 'clicked':
       return {
         message: `已对 ${result.name} 点击“打招呼”。`,
+        name: result.name,
+        geekId: result.geekId,
       };
     default: {
       const _x: never = result;
@@ -503,7 +559,7 @@ export async function openRecommendResumePreview(frame: Frame, target: string): 
 
 export async function runRecommend(
   jobKeyword?: string,
-  options: { refresh?: boolean } = {},
+  options: { refresh?: boolean; json?: boolean } = {},
 ): Promise<string> {
   try {
     return await withBossSessionPage(async (page) => {
@@ -519,6 +575,9 @@ export async function runRecommend(
         );
       }
       const candidates = await readRecommendList(frame);
+      if (options.json) {
+        return serializeRecommendResult(selectedJob, candidates);
+      }
       const title = selectedJob ? `当前岗位：${selectedJob}` : '当前岗位：默认';
       return [title, '', renderRecommendList(candidates)].join('\n');
     });

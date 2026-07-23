@@ -102,6 +102,18 @@ if ($LASTEXITCODE -ne 0) { throw "runtime_store 测试失败。" }
 & py -3 (Join-Path $SkillRoot "scripts\test_skill_contract.py")
 if ($LASTEXITCODE -ne 0) { throw "skill contract 测试失败。" }
 
+Push-Location $RepoRoot
+try {
+    & py -3 -m unittest scripts.test_greet_only
+    if ($LASTEXITCODE -ne 0) { throw "greet_only 测试失败。" }
+
+    & py -3 (Join-Path $RepoRoot "scripts\greet_only.py")
+    if ($LASTEXITCODE -ne 0) { throw "greet_only 配置校验失败。" }
+}
+finally {
+    Pop-Location
+}
+
 & boss help | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "boss 命令验证失败。" }
 

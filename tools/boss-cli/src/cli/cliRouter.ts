@@ -171,18 +171,21 @@ function printHelp(): void {
       读取当前职位列表（含开放/待开放/已关闭状态）
   boss jd <name>
       抓取指定职位详情并缓存到项目目录同名 .md
-  boss recommend [岗位关键字] [--refresh]
+  boss recommend [岗位关键字] [--refresh] [--json]
       进入推荐页并读取推荐列表；带岗位关键字时先在岗位下拉中模糊匹配并切换
       --refresh：随机等待 1–2 秒后显式刷新推荐页，再读取新列表
+      --json：输出包含稳定候选人 ID 的机器可读 JSON
   boss search [关键词]
       进入「搜索」页并读取 Boss 默认常规搜索结果；带关键词时填入搜索框并回车搜索
   boss preview <姓名>
       在线简历预览：须当前已在「推荐」(/web/chat/recommend)、「深度搜索」(/web/chat/aiform) 或「常规搜索」(/web/chat/search) 且列表已加载；不会自动跳转
       注意：平台对在线简历每日可查看次数有限，请按需使用、谨慎查看
-  boss greet <姓名> [--job <岗位关键字>]
+  boss greet <姓名> [--id <候选人ID>] [--job <岗位关键字>] [--json]
       须当前已在「推荐」(/web/chat/recommend) 或「深度搜索」(/web/chat/aiform) 且列表已加载；不会自动跳转
       对当前列表中的候选人点击“打招呼”
+      可选 --id 使用推荐列表中的稳定候选人 ID 精确定位（仅推荐页）
       可选 --job 先在岗位下拉中模糊匹配并切换（与 recommend 共用同一套选择逻辑）
+      --json：输出机器可读的岗位、姓名和候选人 ID（仅推荐页）
       会消耗打招呼次数且单次成本较高，请谨慎使用
   boss deep-search [岗位关键字] [--job <岗位关键字>] [--core <核心要求>] [--bonus <加分项>] [--clear-core] [--clear-bonus] [--match]
       进入「深度搜索」页并输出当前表单、剩余匹配次数和按钮状态；--core/--bonus 可重复，并按传入列表同步对应分组；--clear-* 清空对应分组
@@ -556,32 +559,44 @@ export async function executeCommand(argv: string[]): Promise<string> {
     if (rest[0] === 'preview') {
       die('❌ 请改用: boss preview <姓名>（已不再使用 recommend preview）');
     }
-    const unsupportedFlags = [...flags].filter((flag) => flag !== 'refresh');
+    const unsupportedFlags = [...flags].filter(
+      (flag) => flag !== 'refresh' && flag !== 'json',
+    );
     if (Object.keys(opts).length > 0 || unsupportedFlags.length > 0) {
-      die('❌ 用法: recommend [岗位关键字] [--refresh]');
+      die('❌ 用法: recommend [岗位关键字] [--refresh] [--json]');
     }
     const jobKeyword = rest.join(' ').trim();
     return runWithBossCommandPacing(cmd, () =>
-      implRecommend(jobKeyword || undefined, { refresh: flags.has('refresh') }),
+      implRecommend(jobKeyword || undefined, {
+        refresh: flags.has('refresh'),
+        json: flags.has('json'),
+      }),
     );
   }
 
   if (cmd === 'greet') {
     const { rest, opts, flags } = parseOpts(tail);
-    if (flags.size > 0) {
-      die('❌ 用法: greet <姓名> [--job <岗位关键字>]');
+    const unsupportedFlags = [...flags].filter((flag) => flag !== 'json');
+    if (unsupportedFlags.length > 0) {
+      die('❌ 用法: greet <姓名> [--id <候选人ID>] [--job <岗位关键字>] [--json]');
     }
     const jobKeyword = opts.job?.trim();
-    const extraOpts = Object.keys(opts).filter((k) => k !== 'job');
+    const candidateId = opts.id?.trim();
+    const extraOpts = Object.keys(opts).filter((k) => k !== 'job' && k !== 'id');
     if (extraOpts.length > 0) {
-      die('❌ 用法: greet <姓名> [--job <岗位关键字>]');
+      die('❌ 用法: greet <姓名> [--id <候选人ID>] [--job <岗位关键字>] [--json]');
     }
     const target = rest.join(' ').trim();
     if (!target) {
-      die('❌ 用法: greet <姓名> [--job <岗位关键字>]');
+      die('❌ 用法: greet <姓名> [--id <候选人ID>] [--job <岗位关键字>] [--json]');
     }
     return runWithBossCommandPacing(cmd, () =>
-      implRecommendGreet({ candidateTarget: target, jobKeyword: jobKeyword || undefined }),
+      implRecommendGreet({
+        candidateTarget: target,
+        candidateId: candidateId || undefined,
+        jobKeyword: jobKeyword || undefined,
+        json: flags.has('json'),
+      }),
     );
   }
 

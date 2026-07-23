@@ -13,6 +13,9 @@ export type RecommendCandidate = {
     /** 卡片为灰色「已看过」样式（如 `.candidate-card-wrap.has-viewed` / `.card-inner.has-viewed`） */
     hasViewed: boolean;
 };
+export declare function dedupeRecommendCandidates(candidates: RecommendCandidate[]): RecommendCandidate[];
+export declare function serializeRecommendResult(job: string, candidates: RecommendCandidate[]): string;
+export declare function assertGreetVerified(candidates: RecommendCandidate[], geekId: string, name: string): RecommendCandidate;
 export declare function isBossChatRecommendUrl(url: string): boolean;
 export declare function selectRecommendJob(frame: Frame, keyword: string): Promise<string>;
 export declare function ensureInRecommendPage(page: Page): Promise<Frame>;
@@ -23,8 +26,10 @@ export declare function assertRecommendPageReady(page: Page, actionName: string)
 export declare function assertRecommendPageReadyForPreview(page: Page): Promise<Frame>;
 export declare function readRecommendList(frame: Frame): Promise<RecommendCandidate[]>;
 export declare function renderRecommendList(candidates: RecommendCandidate[]): string;
-export declare function clickGreet(frame: Frame, target: string): Promise<{
+export declare function clickGreet(frame: Frame, target: string, targetId?: string): Promise<{
     message: string;
+    name: string;
+    geekId: string;
 }>;
 export declare function markGreetProduced(before: RecommendCandidate[], after: RecommendCandidate[]): void;
 /**
@@ -34,5 +39,6 @@ export declare function markGreetProduced(before: RecommendCandidate[], after: R
 export declare function openRecommendResumePreview(frame: Frame, target: string): Promise<boolean>;
 export declare function runRecommend(jobKeyword?: string, options?: {
     refresh?: boolean;
+    json?: boolean;
 }): Promise<string>;
 //# sourceMappingURL=recommend.d.ts.map
