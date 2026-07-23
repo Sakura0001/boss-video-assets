@@ -70,7 +70,7 @@ boss help
 | `boss send [--text <内容>]` | 向当前会话发送消息 |
 | `boss send-sequence <姓名> --job <岗位> --messages-json <JSON数组> --json` | 在一次精确会话中发送并验证三条主动招呼消息（供 Python 执行器调用） |
 | `boss action <操作>` | 索要简历 / 不合适 / 备注 / 交换微信等 |
-| `boss recommend [岗位关键字] [--refresh] [--json]` | 读取推荐候选人列表；JSON 模式包含稳定候选人 ID |
+| `boss recommend [岗位关键字] [--refresh] [--json]` | 读取推荐候选人列表；JSON 模式包含稳定候选人 ID 和结构化教育经历 |
 | `boss search [关键词]` | 常规搜索牛人列表 |
 | `boss greet <姓名> [--id <候选人ID>] [--job <岗位>] [--json]` | 在当前推荐/深度搜索页对候选人打招呼；`--id` / `--json` 仅支持推荐页（不会自动跳转） |
 | `boss preview <姓名>` | 在线简历预览（每日次数有限） |

@@ -1,4 +1,11 @@
 import type { Frame, Page } from 'puppeteer-core';
+export type RecommendEducation = {
+    startYear: string;
+    endYear: string;
+    school: string;
+    major: string;
+    degree: string;
+};
 export type RecommendCandidate = {
     geekId: string;
     name: string;
@@ -8,6 +15,7 @@ export type RecommendCandidate = {
     experience: string;
     advantage: string;
     highlights: string[];
+    education: RecommendEducation[];
     canGreet: boolean;
     hasHistoryChat: boolean;
     /** 卡片为灰色「已看过」样式（如 `.candidate-card-wrap.has-viewed` / `.card-inner.has-viewed`） */

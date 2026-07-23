@@ -10,6 +10,7 @@ from scripts.greet_only import (
     CampaignError,
     CampaignRunner,
     Candidate,
+    EducationRecord,
     EligibilityPolicy,
     GreetingKnowledgeBaseError,
     load_greeting_messages,
@@ -89,8 +90,27 @@ def candidate(
     experience="浙江大学 人工智能",
     advantage="",
     highlights=None,
+    education=None,
     can_greet=True,
 ):
+    degree_match = next(
+        (
+            value
+            for value in ("博士", "硕士", "研究生", "本科")
+            if value in base_info
+        ),
+        "本科",
+    )
+    if education is None:
+        education = (
+            EducationRecord(
+                start_year="2024",
+                end_year="2027",
+                school="浙江大学",
+                major="人工智能",
+                degree=degree_match,
+            ),
+        )
     return Candidate(
         geek_id=geek_id,
         name=name,
@@ -99,6 +119,7 @@ def candidate(
         experience=experience,
         advantage=advantage,
         highlights=tuple(highlights or ()),
+        education=tuple(education),
         can_greet=can_greet,
         has_history_chat=False,
         has_viewed=False,
@@ -154,7 +175,11 @@ class EligibilityPolicyTests(unittest.TestCase):
 
     def test_rejects_unknown_school(self):
         result = self.policy.evaluate(
-            candidate(experience="某大学 人工智能", advantage="大模型方向")
+            candidate(
+                education=(
+                    EducationRecord("2024", "2027", "某大学", "人工智能", "博士"),
+                )
+            )
         )
         self.assertFalse(result.eligible)
         self.assertEqual(result.reason, "school_unknown_or_ineligible")
@@ -165,25 +190,44 @@ class EligibilityPolicyTests(unittest.TestCase):
         self.assertEqual(result.reason, "graduation_year")
 
     def test_rejects_major_not_in_knowledge_base(self):
-        result = self.policy.evaluate(candidate(experience="浙江大学 气象学"))
-        self.assertFalse(result.eligible)
-        self.assertEqual(result.reason, "major_unknown_or_ineligible")
-
-    def test_rejects_target_bachelor_school_when_final_master_school_is_not_target(self):
         result = self.policy.evaluate(
             candidate(
-                base_info="27年应届生 / 硕士",
-                experience="本科-浙江大学-人工智能 / 硕士-某大学-人工智能",
+                education=(
+                    EducationRecord("2024", "2027", "浙江大学", "气象学", "博士"),
+                )
             )
         )
         self.assertFalse(result.eligible)
-        self.assertEqual(result.reason, "school_unknown_or_ineligible")
+        self.assertEqual(result.reason, "major_unknown_or_ineligible")
+
+    def test_accepts_target_bachelor_school_when_master_school_is_not_target(self):
+        result = self.policy.evaluate(
+            candidate(
+                base_info="27年应届生 / 硕士",
+                education=(
+                    EducationRecord("2024", "2027", "某大学", "人工智能", "硕士"),
+                    EducationRecord("2020", "2024", "浙江大学", "数学", "本科"),
+                ),
+            )
+        )
+        self.assertTrue(result.eligible)
+        self.assertEqual(result.school, "浙江大学")
+        self.assertEqual(result.major, "人工智能")
 
     def test_accepts_target_final_master_school(self):
         result = self.policy.evaluate(
             candidate(
                 base_info="27年应届生 / 硕士",
-                experience="本科-某大学-数学 / 硕士-上海交通大学-计算机科学与技术",
+                education=(
+                    EducationRecord(
+                        "2024",
+                        "2027",
+                        "上海交通大学",
+                        "计算机科学与技术",
+                        "硕士",
+                    ),
+                    EducationRecord("2020", "2024", "某大学", "数学", "本科"),
+                ),
             )
         )
         self.assertTrue(result.eligible)
@@ -194,7 +238,11 @@ class EligibilityPolicyTests(unittest.TestCase):
             result = self.policy.evaluate(
                 candidate(
                     base_info="27年应届生 / 本科",
-                    experience=f"{school_text} / 人工智能",
+                    education=(
+                        EducationRecord(
+                            "2023", "2027", school_text, "人工智能", "本科"
+                        ),
+                    ),
                 )
             )
             self.assertFalse(result.eligible)
@@ -204,22 +252,72 @@ class EligibilityPolicyTests(unittest.TestCase):
         result = self.policy.evaluate(
             candidate(
                 base_info="27年应届生 / 本科",
-                experience="吉林大学 / 人工智能",
+                education=(
+                    EducationRecord(
+                        "2023", "2027", "吉林大学", "人工智能", "本科"
+                    ),
+                ),
             )
         )
         self.assertTrue(result.eligible)
         self.assertEqual(result.school, "吉林大学")
 
-    def test_uses_compact_card_summary_when_no_education_sequence_is_visible(self):
+    def test_rejects_compact_summary_when_structured_education_is_missing(self):
         result = self.policy.evaluate(
             candidate(
                 base_info="27年应届生 / 硕士",
                 experience="",
                 advantage="上海交通大学 / 人工智能方向，2027年毕业",
+                education=(),
             )
         )
-        self.assertTrue(result.eligible)
-        self.assertEqual(result.school, "上海交通大学")
+        self.assertFalse(result.eligible)
+        self.assertEqual(result.reason, "school_unknown_or_ineligible")
+
+    def test_uses_only_current_degree_major(self):
+        result = self.policy.evaluate(
+            candidate(
+                base_info="27年应届生 / 硕士",
+                education=(
+                    EducationRecord("2024", "2027", "某大学", "气象学", "硕士"),
+                    EducationRecord(
+                        "2020", "2024", "浙江大学", "人工智能", "本科"
+                    ),
+                ),
+            )
+        )
+        self.assertFalse(result.eligible)
+        self.assertEqual(result.reason, "major_unknown_or_ineligible")
+
+    def test_candidate_parses_structured_education_from_recommend_json(self):
+        item = Candidate.from_mapping(
+            {
+                "geekId": "stable-id",
+                "name": "候选人",
+                "baseInfo": "27年应届生 / 硕士",
+                "education": [
+                    {
+                        "startYear": "2024",
+                        "endYear": "2027",
+                        "school": "中国科学院大学",
+                        "major": "人工智能",
+                        "degree": "硕士",
+                    },
+                    {
+                        "startYear": "2020",
+                        "endYear": "2024",
+                        "school": "某大学",
+                        "major": "数学",
+                        "degree": "本科",
+                    },
+                ],
+                "canGreet": True,
+            }
+        )
+
+        self.assertEqual(len(item.education), 2)
+        self.assertEqual(item.education[0].school, "中国科学院大学")
+        self.assertEqual(item.education[1].degree, "本科")
 
 
 class BossCliTests(unittest.TestCase):
@@ -288,7 +386,9 @@ class CampaignRunnerTests(unittest.TestCase):
             candidate(
                 geek_id=f"bad-{index}",
                 name=f"不合格{index}",
-                experience="某大学 气象学",
+                education=(
+                    EducationRecord("2024", "2027", "某大学", "气象学", "博士"),
+                ),
             )
             for index in range(10)
         ]
@@ -372,7 +472,9 @@ class CampaignRunnerTests(unittest.TestCase):
             candidate(
                 geek_id=f"bad-{index}",
                 name=f"不合格{index}",
-                experience="某大学 气象学",
+                education=(
+                    EducationRecord("2024", "2027", "某大学", "气象学", "博士"),
+                ),
             )
             for index in range(11)
         ]

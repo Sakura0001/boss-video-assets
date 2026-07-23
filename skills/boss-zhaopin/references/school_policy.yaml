@@ -1,8 +1,8 @@
 policy:
   enabled: true
   source_file: "references/target_schools.md"
-  match_field: "final_education_school"
-  require_final_education_match: true
+  match_field: "visible_education_schools"
+  require_any_education_school_match: true
   graduation_year: 2027
   allowed_degrees:
     - "本科"
@@ -36,7 +36,7 @@ privacy:
   save_profile_to_git: false
 
 rules:
-  - "本科生看本科院校，研究生看研究生院校，只判断最终学历学校。"
+  - "读取页面右侧显示的全部教育经历学校；本科通常一所，硕士或博士可能显示多所，只要其中任意一所命中目标名单即可通过学校门槛。"
   - "目标学校全称或批准别名必须作为独立字段完整命中；更长院校名称仅包含目标学校文字时不得通过，例如吉林大学交通学院不得按吉林大学命中。"
   - "专业名称不要求逐字命中；学校自定义名称只要语义上能明确判断为计算机类，或与 allowed_majors 中某一方向相近，即可通过。明显无关或无法判断时不回复。"
   - "不要求技术经历、编程经历或工作经历，可以从零培养。"

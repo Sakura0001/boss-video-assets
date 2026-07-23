@@ -78,10 +78,11 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn("AI 相关选择题", interview)
         self.assertIn("全部为选择题", interview)
 
-    def test_candidate_filter_is_2027_final_school_stem_and_silent_on_unknown(self):
+    def test_candidate_filter_is_2027_any_visible_school_stem_and_silent_on_unknown(self):
         policy = self.reference_text["school_policy.yaml"]
         self.assertIn("graduation_year: 2027", policy)
-        self.assertIn('match_field: "final_education_school"', policy)
+        self.assertIn('match_field: "visible_education_schools"', policy)
+        self.assertIn('require_any_education_school_match: true', policy)
         self.assertIn('major_mode: "semantic_related_allowlist"', policy)
         self.assertIn('allowed_majors:', policy)
         self.assertIn('计算机科学与技术', policy)
@@ -89,6 +90,7 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn('语义上能明确判断为计算机类', policy)
         self.assertIn('必须作为独立字段完整命中', policy)
         self.assertIn('吉林大学交通学院不得按吉林大学命中', policy)
+        self.assertIn('任意一所命中目标名单即可', policy)
         self.assertIn('unknown_profile_action: "no_reply"', policy)
         self.assertIn("不要求技术经历", policy)
 

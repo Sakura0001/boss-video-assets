@@ -17,6 +17,15 @@ function candidate(overrides = {}) {
     experience: '浙江大学 人工智能',
     advantage: '',
     highlights: [],
+    education: [
+      {
+        startYear: '2024',
+        endYear: '2027',
+        school: '浙江大学',
+        major: '人工智能',
+        degree: '硕士',
+      },
+    ],
     canGreet: true,
     hasHistoryChat: false,
     hasViewed: false,
@@ -44,6 +53,15 @@ test('serializes the selected job and structured candidate fields', () => {
   assert.equal(parsed.candidates.length, 1);
   assert.equal(parsed.candidates[0].geekId, 'candidate-1');
   assert.equal(parsed.candidates[0].baseInfo, '27年应届生 / 硕士');
+  assert.deepEqual(parsed.candidates[0].education, [
+    {
+      startYear: '2024',
+      endYear: '2027',
+      school: '浙江大学',
+      major: '人工智能',
+      degree: '硕士',
+    },
+  ]);
 });
 
 test('verifies greet only after the exact stable id becomes unavailable', () => {
@@ -71,6 +89,7 @@ test('help documents machine-readable recommend and exact-id greet modes', () =>
   });
   assert.equal(result.status, 0);
   assert.match(result.stderr, /boss recommend \[岗位关键字\] \[--refresh\] \[--json\]/);
+  assert.match(result.stderr, /右侧结构化教育经历/);
   assert.match(
     result.stderr,
     /boss greet <姓名> \[--id <候选人ID>\] \[--job <岗位关键字>\] \[--json\]/,

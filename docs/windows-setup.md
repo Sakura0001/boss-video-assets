@@ -167,7 +167,8 @@ py -3 .\scripts\greet_only.py
 py -3 .\scripts\greet_only.py --execute --job "ai应用研发工程师" --target 150
 ```
 
-这个脚本使用 `boss recommend --json` 获取结构化候选人数据，按仓库
+这个脚本使用 `boss recommend --json` 获取结构化候选人数据和页面右侧全部
+教育经历；硕士或博士显示多所学校时，任意一所精确命中目标名单即可。它按仓库
 `skills\boss-zhaopin\references\` 中的学校、专业和话术原文判断并发送。
 它会读取本机状态库中的今日招呼数，从已有计数继续；每批十人没有合格人选
 时执行推荐页刷新。每位候选人操作前会随机等待 1–2 秒，进度输出会显示

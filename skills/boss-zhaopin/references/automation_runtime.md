@@ -38,7 +38,7 @@ py -3 "$SkillRoot\scripts\runtime_store.py" greeting-count --date "YYYY-MM-DD"
 py -3 "$SkillRoot\scripts\runtime_store.py" due-followups --as-of $NowIso
 ```
 
-候选人标识优先使用 Boss 页面或 CLI 提供的稳定会话标识。无法取得时，使用规范化姓名、最终学校和毕业年份生成本地哈希；不得用姓名模糊匹配替代发送前的 `boss chat "<姓名>" --strict`。
+候选人标识优先使用 Boss 页面或 CLI 提供的稳定会话标识。无法取得时，使用规范化姓名、命中的教育经历学校和毕业年份生成本地哈希；不得用姓名模糊匹配替代发送前的 `boss chat "<姓名>" --strict`。
 
 ## 事件
 
@@ -64,13 +64,13 @@ macOS / Linux:
 python3 "$SKILL_ROOT/scripts/runtime_store.py" greeting-complete \
   --candidate-id "<稳定候选人ID>" --display-name "<姓名>" \
   --greeted-at "<ISO时间>" --job "<岗位>" \
-  --school "<最终学校>" --major "<专业>" --degree "<学历>" --grad-year 2027
+  --school "<命中的教育经历学校>" --major "<专业>" --degree "<学历>" --grad-year 2027
 
 Windows PowerShell:
 py -3 "$SkillRoot\scripts\runtime_store.py" greeting-complete `
   --candidate-id "<稳定候选人ID>" --display-name "<姓名>" `
   --greeted-at "<ISO时间>" --job "<岗位>" `
-  --school "<最终学校>" --major "<专业>" --degree "<学历>" --grad-year 2027
+  --school "<命中的教育经历学校>" --major "<专业>" --degree "<学历>" --grad-year 2027
 ```
 
 ## 保留规则
@@ -78,7 +78,7 @@ py -3 "$SkillRoot\scripts\runtime_store.py" greeting-complete `
 - 候选人执行状态保存三天，之后自动删除。
 - 长期去重索引保存到 `2027-12-31`。
 - 微信交换台账和每日日报一直保留，供微信二次核对。
-- 微信台账允许保存 Boss 显示姓名、会话标识、交换时间、最终学校、专业、学历、投递状态、原部门和备注。
+- 微信台账允许保存 Boss 显示姓名、会话标识、交换时间、命中的教育经历学校、专业、学历、投递状态、原部门和备注。
 - 不保存简历正文、手机号、微信号、Cookie、Token 或完整聊天记录。
 
 ## 转投判断

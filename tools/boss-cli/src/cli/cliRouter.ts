@@ -177,7 +177,7 @@ function printHelp(): void {
   boss recommend [岗位关键字] [--refresh] [--json]
       进入推荐页并读取推荐列表；带岗位关键字时先在岗位下拉中模糊匹配并切换
       --refresh：随机等待 1–2 秒后显式刷新推荐页，再读取新列表
-      --json：输出包含稳定候选人 ID 的机器可读 JSON
+      --json：输出包含稳定候选人 ID 和右侧结构化教育经历的机器可读 JSON
   boss search [关键词]
       进入「搜索」页并读取 Boss 默认常规搜索结果；带关键词时填入搜索框并回车搜索
   boss preview <姓名>

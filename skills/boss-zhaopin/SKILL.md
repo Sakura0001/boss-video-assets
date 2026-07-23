@@ -29,7 +29,9 @@ Before replying to any inbound chat or greeting any recommendation, confirm ever
 
 - 2027 graduation year.
 - Bachelor or postgraduate degree.
-- Final-education school is in `references/target_schools.md`.
+- At least one school in the visible education history is in
+  `references/target_schools.md`. When a postgraduate profile shows both
+  undergraduate and postgraduate schools, either school may satisfy the gate.
 - Match only a complete school name or approved alias as an independent field. A longer
   institution name that merely contains an approved school name is not eligible.
 - Major need not match the allowlist text exactly. Accept school-specific names when their meaning clearly indicates a computer-related major or closely matches one direction in `references/school_policy.yaml`; ambiguous or unrelated majors do not qualify.

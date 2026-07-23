@@ -11,6 +11,14 @@ import { ensurePage } from '../common/ensure_page.js';
 
 const BOSS_CHAT_RECOMMEND_URL = 'https://www.zhipin.com/web/chat/recommend';
 
+export type RecommendEducation = {
+  startYear: string;
+  endYear: string;
+  school: string;
+  major: string;
+  degree: string;
+};
+
 export type RecommendCandidate = {
   geekId: string;
   name: string;
@@ -20,6 +28,7 @@ export type RecommendCandidate = {
   experience: string;
   advantage: string;
   highlights: string[];
+  education: RecommendEducation[];
   canGreet: boolean;
   hasHistoryChat: boolean;
   /** 卡片为灰色「已看过」样式（如 `.candidate-card-wrap.has-viewed` / `.card-inner.has-viewed`） */
@@ -321,6 +330,29 @@ export async function readRecommendList(frame: Frame): Promise<RecommendCandidat
         .map((el) => norm(el.textContent))
         .filter(Boolean);
       const highlights = [...new Set(highlightLabels)];
+      const education = Array.from(
+        item.querySelectorAll(".timeline-wrap.edu-exps .timeline-item"),
+      )
+        .map((entry) => {
+          const years = Array.from(
+            entry.querySelectorAll(".join-text-wrap.time span"),
+          )
+            .map((el) => norm(el.textContent))
+            .filter(Boolean);
+          const fields = Array.from(
+            entry.querySelectorAll(".join-text-wrap.content > span"),
+          )
+            .map((el) => norm(el.textContent))
+            .filter(Boolean);
+          return {
+            startYear: years[0] ?? "",
+            endYear: years[1] ?? "",
+            school: fields[0] ?? "",
+            major: fields[1] ?? "",
+            degree: fields[2] ?? "",
+          };
+        })
+        .filter((entry) => entry.school || entry.major || entry.degree);
       const greetBtn = item.querySelector(".button-chat-wrap .btn.btn-greet");
       const btnCls = greetBtn?.className ?? "";
       const disabled =
@@ -344,6 +376,7 @@ export async function readRecommendList(frame: Frame): Promise<RecommendCandidat
         experience,
         advantage,
         highlights,
+        education,
         canGreet: !disabled,
         hasHistoryChat,
         hasViewed,
@@ -383,6 +416,13 @@ export function renderRecommendList(candidates: RecommendCandidate[]): string {
         m.baseInfo ? `信息:${m.baseInfo}` : '',
         m.expect ? `期望:${m.expect}` : '',
         m.experience ? `经历:${m.experience}` : '',
+        m.education.length > 0
+          ? `教育:${m.education
+              .map((entry) =>
+                [entry.school, entry.major, entry.degree].filter(Boolean).join(' / '),
+              )
+              .join('；')}`
+          : '',
         m.hasHistoryChat ? '同事沟通过' : '',
         m.canGreet ? '可打招呼' : '已打招呼',
       ]

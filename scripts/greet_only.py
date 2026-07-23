@@ -8,7 +8,6 @@ import re
 import subprocess
 import sys
 import time
-import unicodedata
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
@@ -39,6 +38,25 @@ class GreetingKnowledgeBaseError(CampaignError):
 
 
 @dataclass(frozen=True)
+class EducationRecord:
+    start_year: str
+    end_year: str
+    school: str
+    major: str
+    degree: str
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, object]) -> "EducationRecord":
+        return cls(
+            start_year=str(value.get("startYear") or "").strip(),
+            end_year=str(value.get("endYear") or "").strip(),
+            school=str(value.get("school") or "").strip(),
+            major=str(value.get("major") or "").strip(),
+            degree=str(value.get("degree") or "").strip(),
+        )
+
+
+@dataclass(frozen=True)
 class Candidate:
     geek_id: str
     name: str
@@ -47,6 +65,7 @@ class Candidate:
     experience: str
     advantage: str
     highlights: Tuple[str, ...]
+    education: Tuple[EducationRecord, ...]
     can_greet: bool
     has_history_chat: bool
     has_viewed: bool
@@ -56,6 +75,9 @@ class Candidate:
         highlights = value.get("highlights")
         if not isinstance(highlights, list):
             highlights = []
+        education = value.get("education")
+        if not isinstance(education, list):
+            education = []
         return cls(
             geek_id=str(value.get("geekId") or "").strip(),
             name=str(value.get("name") or "").strip(),
@@ -64,6 +86,11 @@ class Candidate:
             experience=str(value.get("experience") or "").strip(),
             advantage=str(value.get("advantage") or "").strip(),
             highlights=tuple(str(item).strip() for item in highlights if str(item).strip()),
+            education=tuple(
+                EducationRecord.from_mapping(item)
+                for item in education
+                if isinstance(item, Mapping)
+            ),
             can_greet=bool(value.get("canGreet")),
             has_history_chat=bool(value.get("hasHistoryChat")),
             has_viewed=bool(value.get("hasViewed")),
@@ -103,30 +130,6 @@ class CampaignResult:
 
 def _normalize(value: str) -> str:
     return re.sub(r"\s+", "", value).lower()
-
-
-def _contains_exact_school_token(text: str, token: str) -> bool:
-    if not text or not token:
-        return False
-    flags = re.IGNORECASE if token.isascii() else 0
-    for match in re.finditer(re.escape(token), text, flags):
-        if token.isascii():
-            before = text[match.start() - 1] if match.start() > 0 else ""
-            after = text[match.end()] if match.end() < len(text) else ""
-            if before and before.isascii() and before.isalnum():
-                continue
-            if after and after.isascii() and after.isalnum():
-                continue
-            return True
-        if match.end() >= len(text):
-            return True
-        following = text[match.end()]
-        if following.isspace():
-            return True
-        category = unicodedata.category(following)
-        if category.startswith(("P", "S", "N")):
-            return True
-    return False
 
 
 def _extract_inline_code_after_heading(markdown: str, heading: str) -> str:
@@ -240,18 +243,24 @@ class EligibilityPolicy:
             majors=_parse_allowed_majors(school_policy),
         )
 
-    def _find_school(self, text: str) -> str:
-        matches: List[Tuple[int, str]] = []
-        for school in self.schools:
-            if _contains_exact_school_token(text, school):
-                matches.append((len(_normalize(school)), school))
-        for alias, official in self.aliases.items():
-            if _contains_exact_school_token(text, alias):
-                matches.append((len(_normalize(alias)), official))
-        if not matches:
+    def _canonical_school(self, value: str) -> str:
+        normalized = _normalize(value)
+        if not normalized:
             return ""
-        matches.sort(reverse=True)
-        return matches[0][1]
+        for school in self.schools:
+            if _normalize(school) == normalized:
+                return school
+        for alias, official in self.aliases.items():
+            if _normalize(alias) == normalized:
+                return official
+        return ""
+
+    def _find_school(self, education: Sequence[EducationRecord]) -> str:
+        for entry in education:
+            school = self._canonical_school(entry.school)
+            if school:
+                return school
+        return ""
 
     def _find_major(self, text: str) -> str:
         normalized = _normalize(text)
@@ -271,42 +280,16 @@ class EligibilityPolicy:
             "博士": 3,
         }.get(degree, 0)
 
-    def _final_education_text(self, candidate: Candidate, degree: str) -> str:
-        education_text = " ".join(
-            part
-            for part in (
-                candidate.experience,
-                candidate.advantage,
-                *candidate.highlights,
-            )
-            if part
+    def _find_current_major(
+        self, education: Sequence[EducationRecord], degree: str
+    ) -> str:
+        requested_level = self._degree_level(degree)
+        current_majors = " ".join(
+            entry.major
+            for entry in education
+            if self._degree_level(entry.degree) == requested_level and entry.major
         )
-        record_pattern = re.compile(r"(博士研究生|硕士研究生|博士|硕士|研究生|本科)")
-        matches = list(record_pattern.finditer(education_text))
-        if matches:
-            requested_level = self._degree_level(degree)
-            records: List[Tuple[str, str]] = []
-            for index, match in enumerate(matches):
-                end = (
-                    matches[index + 1].start()
-                    if index + 1 < len(matches)
-                    else len(education_text)
-                )
-                record_degree = match.group(1)
-                if record_degree.startswith("博士"):
-                    record_degree = "博士"
-                elif record_degree.startswith("硕士"):
-                    record_degree = "硕士"
-                records.append((record_degree, education_text[match.start():end]))
-            same_level = [
-                text
-                for record_degree, text in records
-                if self._degree_level(record_degree) == requested_level
-            ]
-            if same_level:
-                return same_level[-1]
-            return ""
-        return candidate.searchable_text()
+        return self._find_major(current_majors)
 
     def evaluate(self, candidate: Candidate) -> EligibilityResult:
         base = candidate.base_info
@@ -315,13 +298,12 @@ class EligibilityPolicy:
         degree_match = re.search(r"(博士|硕士|研究生|本科)", base)
         if not degree_match:
             return EligibilityResult(False, "degree")
-        education_text = self._final_education_text(
-            candidate, degree_match.group(1)
-        )
-        school = self._find_school(education_text)
+        school = self._find_school(candidate.education)
         if not school:
             return EligibilityResult(False, "school_unknown_or_ineligible")
-        major = self._find_major(education_text)
+        major = self._find_current_major(
+            candidate.education, degree_match.group(1)
+        )
         if not major:
             return EligibilityResult(False, "major_unknown_or_ineligible")
         return EligibilityResult(
