@@ -482,6 +482,7 @@ class BossCliTests(unittest.TestCase):
 
         self.assertEqual(cli.calls[0][-2:], ["--json", "--automation"])
         self.assertIn("--automation", cli.calls[1])
+        self.assertNotIn("--job", cli.calls[1])
         self.assertEqual(cli.calls[2][0], "send-sequence")
         self.assertEqual(cli.calls[2].count("send-sequence"), 1)
 

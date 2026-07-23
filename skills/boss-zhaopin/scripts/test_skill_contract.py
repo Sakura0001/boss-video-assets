@@ -164,6 +164,7 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn("max_candidates_per_run: 1500", greet)
         self.assertIn("无法确认操作成功", greet)
         self.assertIn("跳过该候选人并继续下一位", greet)
+        self.assertIn("不得再次传入 `--job` 重复切换岗位", greet)
         self.assertIn("不得无限循环或快速重试", greet)
         self.assertIn("只打开一次精确会话", greet)
         self.assertIn("不得重复离开并重新进入会话", greet)

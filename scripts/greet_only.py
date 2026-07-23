@@ -437,8 +437,6 @@ class BossCli:
                     candidate.name,
                     "--id",
                     candidate.geek_id,
-                    "--job",
-                    job,
                     "--json",
                     "--automation",
                 ]
