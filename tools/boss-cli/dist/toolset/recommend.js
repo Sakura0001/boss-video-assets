@@ -1,7 +1,6 @@
 import { JOB_SEARCH_ACTION_GAP_MS, JOB_SELECT_ACTION_GAP_MS, RECOMMEND_REFRESH_GAP_MS, RESUME_PREVIEW_OPEN_GAP_MS, sleepRandom, } from '../browser/index.js';
+import { clickBossSidebarMenuToPath } from '../common/boss_sidebar_nav.js';
 import { withBossSessionPage } from '../common/boss_session_page.js';
-import { ensurePage } from '../common/ensure_page.js';
-const BOSS_CHAT_RECOMMEND_URL = 'https://www.zhipin.com/web/chat/recommend';
 export function dedupeRecommendCandidates(candidates) {
     const seenIds = new Set();
     const result = [];
@@ -188,11 +187,7 @@ export async function selectRecommendJob(frame, keyword) {
     return label;
 }
 export async function ensureInRecommendPage(page) {
-    await ensurePage(page, {
-        name: '推荐列表页',
-        targetUrl: BOSS_CHAT_RECOMMEND_URL,
-        matches: isBossChatRecommendUrl,
-    });
+    await clickBossSidebarMenuToPath(page, '推荐', '/web/chat/recommend');
     const frame = await getRecommendFrame(page);
     await ensureRecommendFrameReady(frame);
     return frame;

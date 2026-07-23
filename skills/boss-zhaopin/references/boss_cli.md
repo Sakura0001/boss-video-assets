@@ -86,6 +86,7 @@ boss deep-search [岗位关键字]
 Notes:
 
 - `recommend --refresh` waits one to two seconds, explicitly reloads the recommendation page, and then reads the new list.
+- `recommend` enters through the Boss sidebar recommendation link so the SPA mounts `recommendFrame`; do not replace this with direct URL navigation.
 - `recommend` and `greet --job` reuse the current selected job when its label already matches the keyword instead of reopening the job dropdown.
 - `preview` may consume online resume view quota.
 - `greet` consumes greeting quota.
