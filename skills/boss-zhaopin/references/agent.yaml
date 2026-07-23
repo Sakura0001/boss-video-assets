@@ -7,7 +7,7 @@ agent:
 boss_cli:
   command: "boss"
   default_job_keyword: "数据库研发"
-  max_candidates_per_run: 150
+  max_candidates_per_run: 1500
   max_auto_greetings_per_day: 150
   max_auto_replies_per_day: 500
 
@@ -22,6 +22,7 @@ automation:
     min: 1
     max: 2
   continue_recommendation_search_until_match: true
+  continue_after_unconfirmed_greet: true
   require_knowledge_match: true
   allow_unknown_answer: false
   use_resume_preview: false

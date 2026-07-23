@@ -12,6 +12,7 @@ from scripts.greet_only import (
     Candidate,
     EducationRecord,
     EligibilityPolicy,
+    GreetNotConfirmedError,
     GreetingKnowledgeBaseError,
     load_greeting_messages,
 )
@@ -29,6 +30,7 @@ class FakeBoss:
         self.sequence_calls = []
         self.sent = []
         self.fail_send_at = None
+        self.unconfirmed_greet_ids = set()
 
     def recommend(self, job, refresh):
         self.recommend_calls.append((job, refresh))
@@ -38,6 +40,8 @@ class FakeBoss:
 
     def greet(self, candidate, job):
         self.greeted.append((candidate.geek_id, candidate.name, job))
+        if candidate.geek_id in self.unconfirmed_greet_ids:
+            raise GreetNotConfirmedError("按钮仍可用，无法确认操作成功")
 
     def open_exact_chat(self, candidate, job):
         self.chat_calls.append((candidate.name, job))
@@ -595,6 +599,24 @@ class CampaignRunnerTests(unittest.TestCase):
         self.assertEqual(store.count, 1)
         self.assertEqual(store.states, [])
 
+    def test_unconfirmed_greet_skips_candidate_and_continues(self):
+        failed = candidate(geek_id="failed", name="未确认候选人")
+        good = candidate(geek_id="good", name="合格同学")
+        boss = FakeBoss([[failed, good], [failed, good]])
+        boss.unconfirmed_greet_ids.add("failed")
+        store = FakeStore()
+
+        result = self.runner(boss, store, target=1).run()
+
+        self.assertEqual(result.final_count, 1)
+        self.assertEqual(
+            [item[0] for item in boss.greeted],
+            ["failed", "good"],
+        )
+        self.assertEqual(store.events[0][0], "good")
+        self.assertEqual(len(boss.sequence_calls), 1)
+        self.assertEqual(boss.sequence_calls[0][0], "good")
+
     def test_scan_limit_is_a_hard_stop(self):
         bad = [
             candidate(
@@ -615,8 +637,8 @@ class CampaignRunnerTests(unittest.TestCase):
         self.assertEqual(boss.greeted, [])
 
     def test_scan_limit_cannot_exceed_policy_cap(self):
-        with self.assertRaisesRegex(CampaignError, "1 到 150"):
-            self.runner(FakeBoss([]), FakeStore(), max_scans=151)
+        with self.assertRaisesRegex(CampaignError, "1 到 1500"):
+            self.runner(FakeBoss([]), FakeStore(), max_scans=1501)
 
     def test_repeated_empty_refreshes_stop_instead_of_looping_forever(self):
         boss = FakeBoss([[], [], [], []])

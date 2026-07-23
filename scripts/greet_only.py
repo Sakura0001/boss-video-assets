@@ -19,7 +19,8 @@ from zoneinfo import ZoneInfo
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 DEFAULT_JOB = "ai应用研发工程师"
 DEFAULT_TARGET = 150
-DEFAULT_MAX_SCANS = 150
+DEFAULT_MAX_SCANS = 1500
+MAX_SCAN_LIMIT = 1500
 MIN_CANDIDATE_DELAY_SECONDS = 1.0
 MAX_CANDIDATE_DELAY_SECONDS = 2.0
 REQUIRED_MESSAGE_HEADINGS = (
@@ -30,6 +31,10 @@ REQUIRED_MESSAGE_HEADINGS = (
 
 
 class CampaignError(RuntimeError):
+    pass
+
+
+class GreetNotConfirmedError(CampaignError):
     pass
 
 
@@ -425,18 +430,23 @@ class BossCli:
         ]
 
     def greet(self, candidate: Candidate, job: str) -> None:
-        raw = self._run(
-            [
-                "greet",
-                candidate.name,
-                "--id",
-                candidate.geek_id,
-                "--job",
-                job,
-                "--json",
-                "--automation",
-            ]
-        )
+        try:
+            raw = self._run(
+                [
+                    "greet",
+                    candidate.name,
+                    "--id",
+                    candidate.geek_id,
+                    "--job",
+                    job,
+                    "--json",
+                    "--automation",
+                ]
+            )
+        except CampaignError as exc:
+            if "按钮仍可用，无法确认操作成功" in str(exc):
+                raise GreetNotConfirmedError(str(exc)) from exc
+            raise
         try:
             payload = json.loads(raw)
         except json.JSONDecodeError as exc:
@@ -598,8 +608,10 @@ class CampaignRunner:
     ):
         if target < 1 or target > 150:
             raise CampaignError("目标招呼数必须在 1 到 150 之间")
-        if max_scans < 1 or max_scans > 150:
-            raise CampaignError("检查候选人上限必须在 1 到 150 之间")
+        if max_scans < 1 or max_scans > MAX_SCAN_LIMIT:
+            raise CampaignError(
+                f"检查候选人上限必须在 1 到 {MAX_SCAN_LIMIT} 之间"
+            )
         if len(messages) != 3:
             raise GreetingKnowledgeBaseError("必须从知识库读取到三条消息")
         self.boss = boss
@@ -721,7 +733,25 @@ class CampaignRunner:
             self.sleep(candidate_delay)
             workflow_started = self.monotonic()
             action_time = self._assert_send_window().isoformat()
-            self.boss.greet(eligible_candidate, self.job)
+            try:
+                self.boss.greet(eligible_candidate, self.job)
+            except GreetNotConfirmedError:
+                print(
+                    json.dumps(
+                        {
+                            "event": "greet-skipped",
+                            "candidateId": eligible_candidate.geek_id,
+                            "reason": "greet_not_confirmed",
+                            "count": self.store.greeting_count(date),
+                            "target": self.target,
+                            "scanned": scanned,
+                        },
+                        ensure_ascii=False,
+                    ),
+                    flush=True,
+                )
+                search_started = self.monotonic()
+                continue
             self.store.record_greeted(
                 eligible_candidate,
                 eligibility,
@@ -816,8 +846,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.target < 1 or args.target > 150:
         print("停止：目标招呼数必须在 1 到 150 之间", file=sys.stderr)
         return 2
-    if args.max_scans < 1 or args.max_scans > 150:
-        print("停止：检查候选人上限必须在 1 到 150 之间", file=sys.stderr)
+    if args.max_scans < 1 or args.max_scans > MAX_SCAN_LIMIT:
+        print(
+            f"停止：检查候选人上限必须在 1 到 {MAX_SCAN_LIMIT} 之间",
+            file=sys.stderr,
+        )
         return 2
     root = _repository_root()
     skill_root = root / "skills" / "boss-zhaopin"

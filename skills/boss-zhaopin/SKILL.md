@@ -70,7 +70,11 @@ No technical experience is required. If school, major, degree, or graduation yea
 
 - Never use shell loops or parallel live sends.
 - Before every send, open or verify `boss chat "<姓名>" --strict`.
-- If `boss greet`, `boss chat`, or `boss send` fails, do not execute the next step.
+- If `boss greet` reports only that the greeting button remains available and success
+  cannot be confirmed, do not record the greeting or send follow-up messages; skip that
+  candidate and continue with the next recommendation.
+- For any other `boss greet`, `boss chat`, or `boss send` failure, do not execute the
+  next step and stop the run.
 - After accepting a resume, verify `简历获取状态: 已获取` before claiming to have read it.
 - After `boss action wechat`, verify the action completed before recording success.
 - Stop immediately on captcha, risk-control UI, complaint, report threat, or explicit request to stop contact.
