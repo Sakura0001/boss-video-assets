@@ -101,6 +101,32 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn('unknown_profile_action: "no_reply"', policy)
         self.assertIn("不要求技术经历", policy)
 
+    def test_target_school_catalog_is_structured_and_expanded(self):
+        catalog = self.reference_text["target_schools.md"]
+        rows = re.findall(
+            r"^\| (国内通用院校|海外通用院校) \| ([^|]+?) \| ([^|]+?) \|$",
+            catalog,
+            re.MULTILINE,
+        )
+        schools = [school for _, school, _ in rows]
+        self.assertEqual(len(schools), 218)
+        self.assertEqual(len(set(schools)), 218)
+        for school in (
+            "南京航空航天大学",
+            "南方科技大学",
+            "香港科技大学",
+            "曼彻斯特大学",
+            "国立清华大学",
+            "东北大学（美国）",
+        ):
+            self.assertIn(school, schools)
+        self.assertIn("| 国内通用院校 | 清华大学 | C9 |", catalog)
+        self.assertIn(
+            "| 海外通用院校 | 麻省理工学院 | 海外TOP50 |",
+            catalog,
+        )
+        self.assertIn("院校分类不改变准入结果", catalog)
+
     def test_base_hc_and_role_presence_answer_and_pending_offer_log_are_present(self):
         reply = self.reference_text["auto_reply.md"]
         self.assertIn("某个 base 是否有 HC", reply)

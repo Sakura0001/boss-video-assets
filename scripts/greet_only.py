@@ -196,6 +196,15 @@ def _parse_target_schools(path: Path) -> Tuple[Tuple[str, ...], Dict[str, str]]:
             match = re.match(r"^\d+\.\s+(.+?)\s*$", line)
             if match:
                 schools.append(match.group(1))
+                continue
+            if line.startswith("|") and "---" not in line:
+                cells = [cell.strip() for cell in line.strip("|").split("|")]
+                if (
+                    len(cells) == 3
+                    and cells[0] not in {"适用范围", ""}
+                    and cells[1] not in {"学校", ""}
+                ):
+                    schools.append(cells[1])
         elif in_alias_table and line.startswith("|") and "---" not in line:
             cells = [cell.strip() for cell in line.strip("|").split("|")]
             if len(cells) != 2 or cells[0] in {"标准名称", ""}:

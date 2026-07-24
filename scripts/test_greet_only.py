@@ -312,6 +312,43 @@ class EligibilityPolicyTests(unittest.TestCase):
             ):
                 EligibilityPolicy.from_files(schools_path, policy_path)
 
+    def test_from_files_accepts_structured_school_table(self):
+        schools = """# 目标学校
+
+## 目标学校（允许投递）
+
+| 适用范围 | 学校 | 类别 |
+| --- | --- | --- |
+| 国内通用院校 | 南京航空航天大学 | 211 |
+| 海外通用院校 | 曼彻斯特大学 | 海外其他院校 |
+
+## 学校别名
+
+| 标准名称 | 常见别名 |
+| --- | --- |
+| 南京航空航天大学 | 南航 |
+"""
+        policy = """policy:
+  allowed_majors:
+    - "人工智能"
+  major_aliases:
+    "智能科学与技术": "人工智能"
+  require_technical_experience: false
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            schools_path = root / "target_schools.md"
+            policy_path = root / "school_policy.yaml"
+            schools_path.write_text(schools, encoding="utf-8")
+            policy_path.write_text(policy, encoding="utf-8")
+            parsed = EligibilityPolicy.from_files(schools_path, policy_path)
+
+        self.assertEqual(
+            parsed.schools,
+            ("南京航空航天大学", "曼彻斯特大学"),
+        )
+        self.assertEqual(parsed.aliases["南航"], "南京航空航天大学")
+
     def test_accepts_target_bachelor_school_when_master_school_is_not_target(self):
         result = self.policy.evaluate(
             candidate(
