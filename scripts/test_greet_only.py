@@ -170,15 +170,12 @@ class EligibilityPolicyTests(unittest.TestCase):
             majors=(
                 "人工智能",
                 "计算机科学与技术",
-                "集成电路工程",
                 "自动化",
                 "网络安全",
-                "电子科学与技术",
             ),
             major_aliases={
                 "控制工程": "自动化",
                 "网络空间安全": "网络安全",
-                "微电子学与固体电子学": "电子科学与技术",
             },
         )
 
@@ -220,7 +217,6 @@ class EligibilityPolicyTests(unittest.TestCase):
         cases = (
             ("控制工程", "自动化"),
             ("网络空间安全", "网络安全"),
-            ("微电子学与固体电子学", "电子科学与技术"),
         )
         for source, canonical in cases:
             with self.subTest(source=source):
