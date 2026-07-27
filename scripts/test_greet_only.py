@@ -1,9 +1,8 @@
 import tempfile
 import unittest
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from scripts.greet_only import (
     BossCli,
@@ -14,16 +13,19 @@ from scripts.greet_only import (
     EligibilityPolicy,
     GreetNotConfirmedError,
     GreetingKnowledgeBaseError,
+    RecommendationBatch,
+    build_parser,
     load_greeting_messages,
 )
 
 
-SHANGHAI = ZoneInfo("Asia/Shanghai")
+SHANGHAI = timezone(timedelta(hours=8), "Asia/Shanghai")
 
 
 class FakeBoss:
-    def __init__(self, batches):
+    def __init__(self, batches, job="ai应用研发工程师"):
         self.batches = list(batches)
+        self.job = job
         self.recommend_calls = []
         self.greeted = []
         self.chat_calls = []
@@ -35,8 +37,11 @@ class FakeBoss:
     def recommend(self, job, refresh):
         self.recommend_calls.append((job, refresh))
         if not self.batches:
-            return []
-        return self.batches.pop(0)
+            return RecommendationBatch(self.job, ())
+        batch = self.batches.pop(0)
+        if isinstance(batch, RecommendationBatch):
+            return batch
+        return RecommendationBatch(self.job, tuple(batch))
 
     def greet(self, candidate, job):
         self.greeted.append((candidate.geek_id, candidate.name, job))
@@ -493,7 +498,10 @@ class BossCliTests(unittest.TestCase):
 
         def _run(self, arguments):
             self.calls.append(list(arguments))
-            return self.outputs.pop(0)
+            value = self.outputs.pop(0)
+            if isinstance(value, Exception):
+                raise value
+            return value
 
     def test_automation_commands_use_fast_pacing_and_one_message_sequence(self):
         item = candidate(geek_id="stable-id", name="候选人")
@@ -519,6 +527,91 @@ class BossCliTests(unittest.TestCase):
         self.assertEqual(cli.calls[2][0], "send-sequence")
         self.assertEqual(cli.calls[2].count("send-sequence"), 1)
 
+    def test_recommend_without_job_uses_current_default_job(self):
+        cli = self.CapturingBossCli(
+            ['{"job":"用户当前岗位","candidates":[]}']
+        )
+
+        batch = cli.recommend(None, refresh=False)
+
+        self.assertEqual(batch.job, "用户当前岗位")
+        self.assertEqual(
+            cli.calls,
+            [["recommend", "--json", "--automation"]],
+        )
+
+    def test_login_is_skipped_when_session_is_ready(self):
+        cli = self.CapturingBossCli(["help", "没有未读消息"])
+
+        cli.ensure_logged_in(sleep=lambda _: None)
+
+        self.assertEqual(cli.calls, [["help"], ["list", "--unread"]])
+
+    def test_login_opens_browser_and_waits_until_session_is_ready(self):
+        login_required = CampaignError(
+            "Boss 当前未登录，无法执行该命令。请先运行 boss login"
+        )
+        cli = self.CapturingBossCli(
+            [
+                "help",
+                login_required,
+                "Boss 登录页已打开",
+                login_required,
+                "没有未读消息",
+            ]
+        )
+        clock_values = iter((0.0, 1.0, 2.0))
+
+        cli.ensure_logged_in(
+            timeout_seconds=10,
+            poll_interval_seconds=1,
+            sleep=lambda _: None,
+            monotonic=lambda: next(clock_values),
+        )
+
+        self.assertEqual(
+            cli.calls,
+            [
+                ["help"],
+                ["list", "--unread"],
+                ["login"],
+                ["list", "--unread"],
+                ["list", "--unread"],
+            ],
+        )
+
+    def test_non_login_error_does_not_open_login_page(self):
+        cli = self.CapturingBossCli(
+            ["help", CampaignError("boss list 失败：页面结构异常")]
+        )
+
+        with self.assertRaisesRegex(CampaignError, "页面结构异常"):
+            cli.ensure_logged_in(sleep=lambda _: None)
+
+        self.assertNotIn(["login"], cli.calls)
+
+    def test_login_wait_has_a_hard_timeout(self):
+        login_required = CampaignError(
+            "Boss 当前未登录，无法执行该命令。请先运行 boss login"
+        )
+        cli = self.CapturingBossCli(["help", login_required, "登录页已打开"])
+        clock_values = iter((0.0, 11.0))
+
+        with self.assertRaisesRegex(CampaignError, "等待 Boss 登录超过 10 秒"):
+            cli.ensure_logged_in(
+                timeout_seconds=10,
+                poll_interval_seconds=1,
+                sleep=lambda _: None,
+                monotonic=lambda: next(clock_values),
+            )
+
+    def test_parser_defaults_to_live_current_job_mode(self):
+        args = build_parser().parse_args([])
+
+        self.assertIsNone(args.job)
+        self.assertFalse(args.validate_only)
+        self.assertEqual(args.target, 150)
+
 
 class CampaignRunnerTests(unittest.TestCase):
     def setUp(self):
@@ -532,13 +625,20 @@ class CampaignRunnerTests(unittest.TestCase):
         self.now = lambda: datetime(2026, 7, 23, 10, 0, tzinfo=SHANGHAI)
         self.delays = []
 
-    def runner(self, boss, store, target=150, max_scans=150):
+    def runner(
+        self,
+        boss,
+        store,
+        target=150,
+        max_scans=150,
+        job="ai应用研发工程师",
+    ):
         return CampaignRunner(
             boss=boss,
             store=store,
             policy=self.policy,
             messages=self.messages,
-            job="ai应用研发工程师",
+            job=job,
             target=target,
             max_scans=max_scans,
             now=self.now,
@@ -572,6 +672,35 @@ class CampaignRunnerTests(unittest.TestCase):
                 ("ai应用研发工程师", True),
             ],
         )
+
+    def test_default_job_is_discovered_once_and_used_for_all_actions(self):
+        good = candidate(geek_id="good", name="合格同学")
+        boss = FakeBoss([[good]], job="用户当前岗位")
+        store = FakeStore()
+
+        result = self.runner(boss, store, target=1, job=None).run()
+
+        self.assertEqual(result.job, "用户当前岗位")
+        self.assertEqual(boss.recommend_calls, [(None, False)])
+        self.assertEqual(boss.greeted[0][2], "用户当前岗位")
+        self.assertEqual(boss.sequence_calls[0][2], "用户当前岗位")
+        self.assertEqual(store.events[0][1], "用户当前岗位")
+
+    def test_stops_if_current_default_job_changes_during_run(self):
+        first = candidate(geek_id="first", name="第一位")
+        second = candidate(geek_id="second", name="第二位")
+        boss = FakeBoss(
+            [
+                RecommendationBatch("岗位甲", (first,)),
+                RecommendationBatch("岗位乙", (first, second)),
+            ]
+        )
+        store = FakeStore()
+
+        with self.assertRaisesRegex(CampaignError, "岗位发生变化"):
+            self.runner(boss, store, target=2, job=None).run()
+
+        self.assertEqual(store.count, 1)
 
     def test_sends_only_the_three_knowledge_base_messages_in_order(self):
         good = candidate(geek_id="good", name="合格同学")

@@ -10,17 +10,17 @@ import sys
 import time
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple
-from zoneinfo import ZoneInfo
 
 
-SHANGHAI = ZoneInfo("Asia/Shanghai")
-DEFAULT_JOB = "ai应用研发工程师"
+SHANGHAI = timezone(timedelta(hours=8), "Asia/Shanghai")
 DEFAULT_TARGET = 150
 DEFAULT_MAX_SCANS = 1500
 MAX_SCAN_LIMIT = 1500
+DEFAULT_LOGIN_TIMEOUT_SECONDS = 600.0
+DEFAULT_LOGIN_POLL_INTERVAL_SECONDS = 3.0
 MIN_CANDIDATE_DELAY_SECONDS = 1.0
 MAX_CANDIDATE_DELAY_SECONDS = 2.0
 REQUIRED_MESSAGE_HEADINGS = (
@@ -131,6 +131,13 @@ class CampaignResult:
     final_count: int
     scanned: int
     refreshed: int
+    job: str = ""
+
+
+@dataclass(frozen=True)
+class RecommendationBatch:
+    job: str
+    candidates: Tuple[Candidate, ...]
 
 
 def _normalize(value: str) -> str:
@@ -411,8 +418,94 @@ class BossCli:
             )
         return result.stdout.strip()
 
-    def recommend(self, job: str, refresh: bool) -> List[Candidate]:
-        args = ["recommend", job, "--json", "--automation"]
+    @staticmethod
+    def _login_is_required(error: CampaignError) -> bool:
+        message = str(error)
+        return any(
+            marker in message
+            for marker in (
+                "当前未登录",
+                "请先运行 boss login",
+                "浏览器尚未初始化",
+                "可能未登录",
+                "未登录无法进入主壳",
+            )
+        )
+
+    def ensure_logged_in(
+        self,
+        *,
+        timeout_seconds: float = DEFAULT_LOGIN_TIMEOUT_SECONDS,
+        poll_interval_seconds: float = DEFAULT_LOGIN_POLL_INTERVAL_SECONDS,
+        sleep: Callable[[float], None] = time.sleep,
+        monotonic: Callable[[], float] = time.monotonic,
+    ) -> None:
+        if timeout_seconds <= 0:
+            raise CampaignError("等待登录超时必须大于 0 秒")
+        if poll_interval_seconds <= 0:
+            raise CampaignError("登录检查间隔必须大于 0 秒")
+
+        self._run(["help"])
+        try:
+            self._run(["list", "--unread"])
+            print(
+                json.dumps(
+                    {"event": "login-ready", "message": "Boss 已登录，开始执行"},
+                    ensure_ascii=False,
+                ),
+                flush=True,
+            )
+            return
+        except CampaignError as exc:
+            if not self._login_is_required(exc):
+                raise
+
+        self._run(["login"])
+        print(
+            json.dumps(
+                {
+                    "event": "login-required",
+                    "message": (
+                        "已打开 Boss 登录页，请在浏览器中完成登录；"
+                        "程序会等待并在登录成功后自动开始"
+                    ),
+                },
+                ensure_ascii=False,
+            ),
+            flush=True,
+        )
+        deadline = monotonic() + timeout_seconds
+        while True:
+            if monotonic() >= deadline:
+                raise CampaignError(
+                    f"等待 Boss 登录超过 {int(timeout_seconds)} 秒，请重新运行脚本"
+                )
+            sleep(poll_interval_seconds)
+            try:
+                self._run(["list", "--unread"])
+                print(
+                    json.dumps(
+                        {
+                            "event": "login-complete",
+                            "message": "Boss 登录成功，开始执行",
+                        },
+                        ensure_ascii=False,
+                    ),
+                    flush=True,
+                )
+                return
+            except CampaignError as exc:
+                if not self._login_is_required(exc):
+                    raise
+
+    def recommend(
+        self, job: Optional[str], refresh: bool
+    ) -> RecommendationBatch:
+        requested_job = (job or "").strip()
+        args = ["recommend"]
+        if requested_job:
+            args.append(requested_job)
+        args.extend(["--json", "--automation"])
         if refresh:
             args.append("--refresh")
         raw = self._run(args)
@@ -420,9 +513,16 @@ class BossCli:
             payload = json.loads(raw)
         except json.JSONDecodeError as exc:
             raise CampaignError("boss recommend --json 返回了无效 JSON") from exc
-        if payload.get("job") != job and job not in str(payload.get("job") or ""):
+        actual_job = str(payload.get("job") or "").strip()
+        if not actual_job:
+            raise CampaignError("boss recommend --json 未返回当前岗位")
+        if (
+            requested_job
+            and actual_job != requested_job
+            and requested_job not in actual_job
+        ):
             raise CampaignError(
-                f"推荐岗位不匹配：期望“{job}”，实际“{payload.get('job') or 'unknown'}”"
+                f"推荐岗位不匹配：期望“{requested_job}”，实际“{actual_job}”"
             )
         values = payload.get("candidates")
         if not isinstance(values, list):
@@ -432,11 +532,14 @@ class BossCli:
             for item in values
             if isinstance(item, dict)
         ]
-        return [
-            candidate
-            for candidate in candidates
-            if candidate.geek_id and candidate.name
-        ]
+        return RecommendationBatch(
+            job=actual_job,
+            candidates=tuple(
+                candidate
+                for candidate in candidates
+                if candidate.geek_id and candidate.name
+            ),
+        )
 
     def greet(self, candidate: Candidate, job: str) -> None:
         try:
@@ -605,7 +708,7 @@ class CampaignRunner:
         store,
         policy: EligibilityPolicy,
         messages: Tuple[str, str, str],
-        job: str,
+        job: Optional[str],
         target: int,
         max_scans: int,
         now: Callable[[], datetime],
@@ -625,7 +728,7 @@ class CampaignRunner:
         self.store = store
         self.policy = policy
         self.messages = messages
-        self.job = job
+        self.requested_job = (job or "").strip() or None
         self.target = target
         self.max_scans = max_scans
         self.now = now
@@ -645,18 +748,25 @@ class CampaignRunner:
             raise CampaignError("当前不在 Asia/Shanghai 09:00–21:00 招聘时段")
         return current
 
-    def _send_messages(self, candidate: Candidate) -> None:
+    def _send_messages(self, candidate: Candidate, job: str) -> None:
         self._assert_send_window()
-        self.boss.send_sequence(candidate, self.job, self.messages)
+        self.boss.send_sequence(candidate, job, self.messages)
 
     def run(self) -> CampaignResult:
         current = self._assert_send_window()
         date = current.date().isoformat()
         initial_count = self.store.greeting_count(date)
         if initial_count >= self.target:
-            return CampaignResult(initial_count, initial_count, 0, 0)
+            return CampaignResult(
+                initial_count,
+                initial_count,
+                0,
+                0,
+                self.requested_job or "",
+            )
 
         seen_ids = set()
+        active_job: Optional[str] = None
         scanned = 0
         refresh_next = False
         refreshed = 0
@@ -672,6 +782,7 @@ class CampaignRunner:
                     final_count=current_count,
                     scanned=scanned,
                     refreshed=refreshed,
+                    job=active_job or "",
                 )
             if scanned >= self.max_scans:
                 raise CampaignError(
@@ -679,7 +790,30 @@ class CampaignRunner:
                     f"当前招呼数 {current_count}/{self.target}"
                 )
 
-            candidates = self.boss.recommend(self.job, refresh_next)
+            batch = self.boss.recommend(self.requested_job, refresh_next)
+            if active_job is None:
+                active_job = batch.job
+                print(
+                    json.dumps(
+                        {
+                            "event": "job-selected",
+                            "job": active_job,
+                            "message": (
+                                "使用指定岗位"
+                                if self.requested_job
+                                else "使用 Boss 当前默认岗位"
+                            ),
+                        },
+                        ensure_ascii=False,
+                    ),
+                    flush=True,
+                )
+            elif batch.job != active_job:
+                raise CampaignError(
+                    f"执行期间岗位发生变化：原岗位“{active_job}”，"
+                    f"当前岗位“{batch.job}”"
+                )
+            candidates = batch.candidates
             if refresh_next:
                 refreshed += 1
             refresh_next = False
@@ -741,7 +875,7 @@ class CampaignRunner:
             workflow_started = self.monotonic()
             action_time = self._assert_send_window().isoformat()
             try:
-                self.boss.greet(eligible_candidate, self.job)
+                self.boss.greet(eligible_candidate, active_job)
             except GreetNotConfirmedError:
                 print(
                     json.dumps(
@@ -762,10 +896,10 @@ class CampaignRunner:
             self.store.record_greeted(
                 eligible_candidate,
                 eligibility,
-                self.job,
+                active_job,
                 action_time,
             )
-            self._send_messages(eligible_candidate)
+            self._send_messages(eligible_candidate, active_job)
             self.store.mark_waiting_resume(
                 eligible_candidate,
                 eligibility,
@@ -835,15 +969,38 @@ def _repository_root() -> Path:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="仅执行 Boss 主动打招呼和知识库三条消息"
+        description=(
+            "一键登录 Boss，使用当前默认岗位执行主动打招呼和知识库三条消息"
+        )
     )
-    parser.add_argument("--job", default=DEFAULT_JOB)
+    parser.add_argument(
+        "--job",
+        default=None,
+        help="可选岗位覆盖；默认使用 Boss 推荐页当前选中的岗位",
+    )
     parser.add_argument("--target", type=int, default=DEFAULT_TARGET)
     parser.add_argument("--max-scans", type=int, default=DEFAULT_MAX_SCANS)
     parser.add_argument(
         "--execute",
         action="store_true",
-        help="确认执行真实 Boss 打招呼与消息发送；未提供时只做配置校验",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="只校验配置，不登录、不执行真实操作",
+    )
+    parser.add_argument(
+        "--login-timeout",
+        type=float,
+        default=DEFAULT_LOGIN_TIMEOUT_SECONDS,
+        help="等待用户完成登录的最长秒数，默认 600",
+    )
+    parser.add_argument(
+        "--login-poll-interval",
+        type=float,
+        default=DEFAULT_LOGIN_POLL_INTERVAL_SECONDS,
+        help="登录状态检查间隔秒数，默认 3",
     )
     return parser
 
@@ -859,6 +1016,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             file=sys.stderr,
         )
         return 2
+    if args.login_timeout <= 0:
+        print("停止：等待登录超时必须大于 0 秒", file=sys.stderr)
+        return 2
+    if args.login_poll_interval <= 0:
+        print("停止：登录检查间隔必须大于 0 秒", file=sys.stderr)
+        return 2
     root = _repository_root()
     skill_root = root / "skills" / "boss-zhaopin"
     messages = load_greeting_messages(skill_root / "references" / "greetings.md")
@@ -866,12 +1029,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         skill_root / "references" / "target_schools.md",
         skill_root / "references" / "school_policy.yaml",
     )
-    if not args.execute:
+    if args.validate_only:
         print(
             json.dumps(
                 {
                     "validated": True,
                     "job": args.job,
+                    "jobMode": "override" if args.job else "current-default",
                     "target": args.target,
                     "maxScans": args.max_scans,
                     "messageCount": len(messages),
@@ -881,9 +1045,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
         return 0
 
+    boss = BossCli()
     store = RuntimeStoreCli(skill_root / "scripts" / "runtime_store.py")
     runner = CampaignRunner(
-        boss=BossCli(),
+        boss=boss,
         store=store,
         policy=policy,
         messages=messages,
@@ -895,6 +1060,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     lock_path = _state_root() / "greet-only.lock"
     try:
         with CampaignLock(lock_path):
+            boss.ensure_logged_in(
+                timeout_seconds=args.login_timeout,
+                poll_interval_seconds=args.login_poll_interval,
+            )
             result = runner.run()
     except KeyboardInterrupt:
         print("停止：收到 Ctrl+C，已安全释放执行器锁", file=sys.stderr)
@@ -909,6 +1078,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "finalCount": result.final_count,
                 "scanned": result.scanned,
                 "refreshed": result.refreshed,
+                "job": result.job,
             },
             ensure_ascii=False,
         )

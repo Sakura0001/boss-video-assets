@@ -23,11 +23,6 @@ Require-Command -Name "git" -InstallHint "请安装 Git for Windows。"
 Require-Command -Name "node" -InstallHint "请安装 Node.js 20 或更高版本。"
 Require-Command -Name "npm" -InstallHint "npm 应随 Node.js 一起安装。"
 Require-Command -Name "py" -InstallHint "请安装 64 位 Python 3，并启用 py launcher。"
-Require-Command -Name "claude" -InstallHint "请先安装 Claude Code，然后打开新的 PowerShell。"
-
-if ($env:CLAUDE_CODE_DISABLE_CRON -eq "1") {
-    throw "CLAUDE_CODE_DISABLE_CRON=1 会禁用 /loop。请取消该环境变量后重试。"
-}
 
 $NodeMajor = [int](& node -p "Number(process.versions.node.split('.')[0])")
 if ($LASTEXITCODE -ne 0 -or $NodeMajor -lt 20) {
@@ -37,19 +32,6 @@ if ($LASTEXITCODE -ne 0 -or $NodeMajor -lt 20) {
 & py -3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)"
 if ($LASTEXITCODE -ne 0) {
     throw "boss-zhaopin 要求 Python 3.9 或更高版本。"
-}
-
-$ClaudeVersionText = (& claude --version | Out-String).Trim()
-if ($LASTEXITCODE -ne 0) {
-    throw "无法读取 Claude Code 版本。"
-}
-$ClaudeVersionMatch = [regex]::Match($ClaudeVersionText, '(?<!\d)(\d+)\.(\d+)\.(\d+)')
-if (-not $ClaudeVersionMatch.Success) {
-    throw "无法解析 Claude Code 版本：$ClaudeVersionText"
-}
-$ClaudeVersion = [version]$ClaudeVersionMatch.Value
-if ($ClaudeVersion -lt [version]'2.1.72') {
-    throw "Claude Code /loop 要求 2.1.72 或更高版本，当前为 $ClaudeVersion。"
 }
 
 $ProgramFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
@@ -107,7 +89,7 @@ try {
     & py -3 -m unittest scripts.test_greet_only
     if ($LASTEXITCODE -ne 0) { throw "greet_only 测试失败。" }
 
-    & py -3 (Join-Path $RepoRoot "scripts\greet_only.py")
+    & py -3 (Join-Path $RepoRoot "scripts\greet_only.py") --validate-only
     if ($LASTEXITCODE -ne 0) { throw "greet_only 配置校验失败。" }
 }
 finally {
@@ -118,10 +100,9 @@ finally {
 if ($LASTEXITCODE -ne 0) { throw "boss 命令验证失败。" }
 
 Write-Host "Windows 环境准备完成。" -ForegroundColor Green
-Write-Host "Claude Code 版本：$ClaudeVersion"
 Write-Host "下一步："
-Write-Host "  1. 在当前用户下运行 boss login 并完成 Boss 登录。"
-Write-Host "  2. 运行 boss list --unread 验证登录。"
-Write-Host "  3. 回到仓库根目录运行 claude。"
-Write-Host "  4. 在 Claude Code 中输入 /loop 1m。"
+Write-Host "  1. 保持当前 PowerShell 位于仓库根目录。"
+Write-Host "  2. 运行：py -3 .\scripts\greet_only.py"
+Write-Host "  3. 如果浏览器打开登录页，请完成登录；之后脚本会自动开始。"
+Write-Host "脚本使用 Boss 推荐页当前选中的默认岗位，不需要输入岗位名。"
 Write-Host "本地状态目录：$StateRoot"

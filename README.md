@@ -2,14 +2,16 @@
 
 本仓库用于保存 Boss 直聘招聘自动化相关资料、工具副本和后续知识库。当前已内置 `@joohw/boss-cli` 的可分发副本，方便同事从 GitHub 拉取后在本机安装使用。
 
+当前给普通用户使用的运行范围只有：筛选合格候选人、打招呼、发送三条知识库
+消息，并持续执行到当天累计 150 个。未读、跟进、简历和微信流程不会运行。
+
 ## 目录结构
 
 ```text
 skills/boss-zhaopin/                  当前招聘业务 skill 的仓库镜像
 .claude/skills/boss-zhaopin/          Claude Code 项目 skill 桥接
-.claude/loop.md                       Claude Code 一分钟招聘 Loop 提示词
 scripts/setup-windows.ps1             Windows 环境准备脚本
-scripts/greet_only.py                 仅主动打招呼的 Python 执行器
+scripts/greet_only.py                 一键登录并自动打满招呼的 Python 执行器
 tools/boss-cli/                       Boss 直聘 CLI 工具副本
 boss-recruiting-agent/                历史框架资料，不作为运行时来源
 AGENTS.md                              Agent/Skill 协作参考说明
@@ -34,27 +36,23 @@ npm install
 
 本仓库不会提交 `node_modules/`，依赖需要在每台机器本地安装。
 
-### Windows + Claude Code
+### Windows 一键安装与运行
 
 在 PowerShell 中从仓库根目录运行：
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
 .\scripts\setup-windows.ps1
-boss login
-boss list --unread
-claude
+py -3 .\scripts\greet_only.py
 ```
 
-进入 Claude Code 后输入：
+Python 会检查 Boss CLI 登录状态；未登录时自动打开浏览器并等待用户登录，
+登录成功后立即使用 Boss 推荐页当前选中的默认岗位开始执行。无需启动
+Claude Code、无需 `/loop`，也无需输入岗位名。完整步骤和故障排查见
+[Windows 迁移说明](docs/windows-setup.md)。
 
-```text
-/loop 1m
-```
-
-Claude Code 会自动读取 `.claude/loop.md`。完整步骤和故障排查见 [Windows 迁移说明](docs/windows-setup.md)。
-
-`/loop` 要求 Claude Code 2.1.72 或更高版本。旧电脑的 `state.sqlite3` 不得上传 GitHub，但建议按迁移说明通过私密通道复制到 Windows，避免丢失当日计数和长期去重。
+旧电脑的 `state.sqlite3` 不得上传 GitHub，但建议按迁移说明通过私密通道
+复制到 Windows，避免丢失当日计数和长期去重。
 
 ## 运行方式
 
@@ -75,11 +73,9 @@ boss help
 
 ## 首次登录
 
-```bash
-boss login
-```
-
-该命令会打开 Boss 直聘登录页，需要用户在浏览器中自行完成登录。登录态保存在本机，不要提交任何 Cookie、Token 或缓存文件。
+直接运行 `scripts/greet_only.py`。脚本发现未登录后会调用 CLI 打开 Boss
+登录页并等待；用户只需在浏览器完成登录。登录态保存在本机，不要提交任何
+Cookie、Token 或缓存文件。
 
 ## 常用命令
 
@@ -179,17 +175,21 @@ Python 执行器。它从推荐页右侧读取全部结构化教育经历，并�
 `skills/boss-zhaopin/references/` 读取学校、专业和三条主动招呼话术；
 多所学校时任意一所精确命中目标名单即可，不调用大模型生成或改写消息。
 
-先做只读配置校验：
+只读配置校验：
+
+```powershell
+py -3 .\scripts\greet_only.py --validate-only
+```
+
+正式执行只需：
 
 ```powershell
 py -3 .\scripts\greet_only.py
 ```
 
-确认 Boss 已登录、当前没有另一个 Claude Loop 或执行器后，执行真实动作：
-
-```powershell
-py -3 .\scripts\greet_only.py --execute --job "ai应用研发工程师" --target 150
-```
+脚本默认目标是当天累计 150 个招呼，并使用 Boss 推荐页当前选中的岗位。
+没有登录时自动打开登录页等待；不需要 `--execute`、`--job`、Claude Code
+或 `/loop`。
 
 执行器读取本地 `greeting-count` 断点续跑，每批最多检查十名不同候选人；
 当前批次没有合格候选人时显式刷新推荐页。招呼成功后，只进入一次精确会话，
@@ -200,7 +200,7 @@ py -3 .\scripts\greet_only.py --execute --job "ai应用研发工程师" --target
 进度中的 `selectionSeconds` 是筛选耗时，`workflowSeconds` 是招呼到三条
 消息验证完成的耗时，`cycleSeconds` 是该候选人的完整周期耗时。
 
-不要与 `.claude/loop.md`、另一台电脑或第二个终端同时运行。
+不要与另一台电脑、第二个终端或任何其他 Boss 自动化执行器同时运行。
 
 用户只需要运行上述 Python 命令；候选人筛选、推荐页刷新、精确 ID 招呼、
 聊天页切换、三条消息发送、结果验证和状态记录均由脚本自动编排。
