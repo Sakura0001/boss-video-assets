@@ -540,6 +540,24 @@ class BossCliTests(unittest.TestCase):
             [["recommend", "--json", "--automation"]],
         )
 
+    def test_send_sequence_strips_recommendation_location_and_salary(self):
+        item = candidate(geek_id="stable-id", name="候选人")
+        cli = self.CapturingBossCli(
+            [
+                '{"job":"ai应用研发工程师","name":"候选人",'
+                '"messagesVerified":3}'
+            ]
+        )
+
+        cli.send_sequence(
+            item,
+            "ai应用研发工程师 _ 上海 25-30K",
+            ("知识库一", "知识库二", "知识库三"),
+        )
+
+        job_index = cli.calls[0].index("--job")
+        self.assertEqual(cli.calls[0][job_index + 1], "ai应用研发工程师")
+
     def test_login_is_skipped_when_session_is_ready(self):
         cli = self.CapturingBossCli(["help", "没有未读消息"])
 

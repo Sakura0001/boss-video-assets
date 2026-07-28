@@ -571,18 +571,26 @@ class BossCli:
         if payload.get("name") != candidate.name:
             raise CampaignError("打招呼结果候选人姓名不匹配")
 
+    @staticmethod
+    def _chat_job_name(recommendation_job: str) -> str:
+        job = recommendation_job.strip()
+        if not job:
+            raise CampaignError("无法从推荐页岗位标签解析聊天岗位")
+        return re.split(r"\s+[_｜|]\s+", job, maxsplit=1)[0].strip()
+
     def send_sequence(
         self,
         candidate: Candidate,
         job: str,
         messages: Tuple[str, str, str],
     ) -> None:
+        chat_job = self._chat_job_name(job)
         raw = self._run(
             [
                 "send-sequence",
                 candidate.name,
                 "--job",
-                job,
+                chat_job,
                 "--messages-json",
                 json.dumps(list(messages), ensure_ascii=False),
                 "--json",
@@ -596,7 +604,7 @@ class BossCli:
             ) from exc
         if payload.get("name") != candidate.name:
             raise CampaignError("消息序列结果候选人姓名不匹配")
-        if job not in str(payload.get("job") or ""):
+        if chat_job not in str(payload.get("job") or ""):
             raise CampaignError("消息序列结果岗位不匹配")
         if payload.get("messagesVerified") != 3:
             raise CampaignError("三条知识库消息未全部验证")
