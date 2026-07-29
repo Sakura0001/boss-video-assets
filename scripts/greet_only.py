@@ -21,6 +21,8 @@ DEFAULT_MAX_SCANS = 1500
 MAX_SCAN_LIMIT = 1500
 DEFAULT_LOGIN_TIMEOUT_SECONDS = 600.0
 DEFAULT_LOGIN_POLL_INTERVAL_SECONDS = 3.0
+DEFAULT_RECOMMEND_RETRY_ATTEMPTS = 3
+DEFAULT_RECOMMEND_RETRY_DELAY_SECONDS = 2.0
 MIN_CANDIDATE_DELAY_SECONDS = 1.0
 MAX_CANDIDATE_DELAY_SECONDS = 2.0
 REQUIRED_MESSAGE_HEADINGS = (
@@ -391,9 +393,15 @@ class EligibilityPolicy:
 
 
 class BossCli:
-    def __init__(self, executable: str = "boss", timeout_seconds: int = 90):
+    def __init__(
+        self,
+        executable: str = "boss",
+        timeout_seconds: int = 90,
+        retry_sleep: Callable[[float], None] = time.sleep,
+    ):
         self.executable = executable
         self.timeout_seconds = timeout_seconds
+        self.retry_sleep = retry_sleep
 
     def _run(self, arguments: Sequence[str]) -> str:
         try:
@@ -435,11 +443,12 @@ class BossCli:
     def ensure_logged_in(
         self,
         *,
+        job: Optional[str] = None,
         timeout_seconds: float = DEFAULT_LOGIN_TIMEOUT_SECONDS,
         poll_interval_seconds: float = DEFAULT_LOGIN_POLL_INTERVAL_SECONDS,
         sleep: Callable[[float], None] = time.sleep,
         monotonic: Callable[[], float] = time.monotonic,
-    ) -> None:
+    ) -> RecommendationBatch:
         if timeout_seconds <= 0:
             raise CampaignError("等待登录超时必须大于 0 秒")
         if poll_interval_seconds <= 0:
@@ -447,15 +456,19 @@ class BossCli:
 
         self._run(["help"])
         try:
-            self._run(["list", "--unread"])
+            batch = self.recommend(job, refresh=False)
             print(
                 json.dumps(
-                    {"event": "login-ready", "message": "Boss 已登录，开始执行"},
+                    {
+                        "event": "login-ready",
+                        "job": batch.job,
+                        "message": "Boss 已登录，开始执行",
+                    },
                     ensure_ascii=False,
                 ),
                 flush=True,
             )
-            return
+            return batch
         except CampaignError as exc:
             if not self._login_is_required(exc):
                 raise
@@ -482,23 +495,36 @@ class BossCli:
                 )
             sleep(poll_interval_seconds)
             try:
-                self._run(["list", "--unread"])
+                batch = self.recommend(job, refresh=False)
                 print(
                     json.dumps(
                         {
                             "event": "login-complete",
+                            "job": batch.job,
                             "message": "Boss 登录成功，开始执行",
                         },
                         ensure_ascii=False,
                     ),
                     flush=True,
                 )
-                return
+                return batch
             except CampaignError as exc:
                 if not self._login_is_required(exc):
                     raise
 
-    def recommend(
+    @staticmethod
+    def _recommend_read_is_transient(error: CampaignError) -> bool:
+        message = str(error)
+        return any(
+            marker in message
+            for marker in (
+                "Waiting failed: 18000ms exceeded",
+                "net::ERR_ABORTED",
+                "网络异常，请刷新重试",
+            )
+        )
+
+    def _recommend_once(
         self, job: Optional[str], refresh: bool
     ) -> RecommendationBatch:
         requested_job = (job or "").strip()
@@ -540,6 +566,37 @@ class BossCli:
                 if candidate.geek_id and candidate.name
             ),
         )
+
+    def recommend(
+        self, job: Optional[str], refresh: bool
+    ) -> RecommendationBatch:
+        for attempt in range(1, DEFAULT_RECOMMEND_RETRY_ATTEMPTS + 1):
+            try:
+                return self._recommend_once(
+                    job,
+                    refresh=refresh or attempt > 1,
+                )
+            except CampaignError as exc:
+                if (
+                    attempt >= DEFAULT_RECOMMEND_RETRY_ATTEMPTS
+                    or not self._recommend_read_is_transient(exc)
+                ):
+                    raise
+                print(
+                    json.dumps(
+                        {
+                            "event": "recommend-retry",
+                            "attempt": attempt + 1,
+                            "maxAttempts": DEFAULT_RECOMMEND_RETRY_ATTEMPTS,
+                            "reason": "transient_read_failure",
+                        },
+                        ensure_ascii=False,
+                    ),
+                    flush=True,
+                )
+                self.retry_sleep(DEFAULT_RECOMMEND_RETRY_DELAY_SECONDS)
+
+        raise CampaignError("推荐页读取重试异常结束")
 
     def greet(self, candidate: Candidate, job: str) -> None:
         try:
@@ -760,7 +817,10 @@ class CampaignRunner:
         self._assert_send_window()
         self.boss.send_sequence(candidate, job, self.messages)
 
-    def run(self) -> CampaignResult:
+    def run(
+        self,
+        initial_batch: Optional[RecommendationBatch] = None,
+    ) -> CampaignResult:
         current = self._assert_send_window()
         date = current.date().isoformat()
         initial_count = self.store.greeting_count(date)
@@ -781,6 +841,7 @@ class CampaignRunner:
         consecutive_empty_batches = 0
         max_empty_batches = max(1, (self.max_scans + 9) // 10)
         search_started = self.monotonic()
+        pending_batch = initial_batch
 
         while True:
             current_count = self.store.greeting_count(date)
@@ -798,7 +859,11 @@ class CampaignRunner:
                     f"当前招呼数 {current_count}/{self.target}"
                 )
 
-            batch = self.boss.recommend(self.requested_job, refresh_next)
+            if pending_batch is not None:
+                batch = pending_batch
+                pending_batch = None
+            else:
+                batch = self.boss.recommend(self.requested_job, refresh_next)
             if active_job is None:
                 active_job = batch.job
                 print(
@@ -1068,11 +1133,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     lock_path = _state_root() / "greet-only.lock"
     try:
         with CampaignLock(lock_path):
-            boss.ensure_logged_in(
+            initial_batch = boss.ensure_logged_in(
+                job=args.job,
                 timeout_seconds=args.login_timeout,
                 poll_interval_seconds=args.login_poll_interval,
             )
-            result = runner.run()
+            result = runner.run(initial_batch=initial_batch)
     except KeyboardInterrupt:
         print("停止：收到 Ctrl+C，已安全释放执行器锁", file=sys.stderr)
         return 130

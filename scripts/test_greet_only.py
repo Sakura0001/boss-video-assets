@@ -492,7 +492,10 @@ class EligibilityPolicyTests(unittest.TestCase):
 class BossCliTests(unittest.TestCase):
     class CapturingBossCli(BossCli):
         def __init__(self, outputs):
-            super().__init__(executable="boss")
+            super().__init__(
+                executable="boss",
+                retry_sleep=lambda _: None,
+            )
             self.outputs = list(outputs)
             self.calls = []
 
@@ -540,6 +543,34 @@ class BossCliTests(unittest.TestCase):
             [["recommend", "--json", "--automation"]],
         )
 
+    def test_transient_recommend_timeout_retries_with_refresh(self):
+        cli = self.CapturingBossCli(
+            [
+                CampaignError(
+                    "boss recommend --json 失败："
+                    "读取推荐列表失败：Waiting failed: 18000ms exceeded"
+                ),
+                '{"job":"用户当前岗位","candidates":[]}',
+            ]
+        )
+
+        batch = cli.recommend(None, refresh=False)
+
+        self.assertEqual(batch.job, "用户当前岗位")
+        self.assertNotIn("--refresh", cli.calls[0])
+        self.assertIn("--refresh", cli.calls[1])
+
+    def test_login_failure_does_not_retry_as_recommend_timeout(self):
+        login_required = CampaignError(
+            "Boss 当前未登录，无法执行该命令。请先运行 boss login"
+        )
+        cli = self.CapturingBossCli([login_required])
+
+        with self.assertRaises(CampaignError):
+            cli.recommend(None, refresh=False)
+
+        self.assertEqual(len(cli.calls), 1)
+
     def test_send_sequence_strips_recommendation_location_and_salary(self):
         item = candidate(geek_id="stable-id", name="候选人")
         cli = self.CapturingBossCli(
@@ -559,11 +590,17 @@ class BossCliTests(unittest.TestCase):
         self.assertEqual(cli.calls[0][job_index + 1], "ai应用研发工程师")
 
     def test_login_is_skipped_when_session_is_ready(self):
-        cli = self.CapturingBossCli(["help", "没有未读消息"])
+        cli = self.CapturingBossCli(
+            ["help", '{"job":"用户当前岗位","candidates":[]}']
+        )
 
-        cli.ensure_logged_in(sleep=lambda _: None)
+        batch = cli.ensure_logged_in(sleep=lambda _: None)
 
-        self.assertEqual(cli.calls, [["help"], ["list", "--unread"]])
+        self.assertEqual(batch.job, "用户当前岗位")
+        self.assertEqual(
+            cli.calls,
+            [["help"], ["recommend", "--json", "--automation"]],
+        )
 
     def test_login_opens_browser_and_waits_until_session_is_ready(self):
         login_required = CampaignError(
@@ -575,7 +612,7 @@ class BossCliTests(unittest.TestCase):
                 login_required,
                 "Boss 登录页已打开",
                 login_required,
-                "没有未读消息",
+                '{"job":"用户当前岗位","candidates":[]}',
             ]
         )
         clock_values = iter((0.0, 1.0, 2.0))
@@ -591,16 +628,16 @@ class BossCliTests(unittest.TestCase):
             cli.calls,
             [
                 ["help"],
-                ["list", "--unread"],
+                ["recommend", "--json", "--automation"],
                 ["login"],
-                ["list", "--unread"],
-                ["list", "--unread"],
+                ["recommend", "--json", "--automation"],
+                ["recommend", "--json", "--automation"],
             ],
         )
 
     def test_non_login_error_does_not_open_login_page(self):
         cli = self.CapturingBossCli(
-            ["help", CampaignError("boss list 失败：页面结构异常")]
+            ["help", CampaignError("boss recommend 失败：页面结构异常")]
         )
 
         with self.assertRaisesRegex(CampaignError, "页面结构异常"):
@@ -703,6 +740,19 @@ class CampaignRunnerTests(unittest.TestCase):
         self.assertEqual(boss.greeted[0][2], "用户当前岗位")
         self.assertEqual(boss.sequence_calls[0][2], "用户当前岗位")
         self.assertEqual(store.events[0][1], "用户当前岗位")
+
+    def test_initial_login_batch_is_reused_without_second_recommend(self):
+        good = candidate(geek_id="good", name="合格同学")
+        initial_batch = RecommendationBatch("用户当前岗位", (good,))
+        boss = FakeBoss([], job="用户当前岗位")
+        store = FakeStore()
+
+        result = self.runner(boss, store, target=1, job=None).run(
+            initial_batch=initial_batch
+        )
+
+        self.assertEqual(result.final_count, 1)
+        self.assertEqual(boss.recommend_calls, [])
 
     def test_stops_if_current_default_job_changes_during_run(self):
         first = candidate(geek_id="first", name="第一位")
