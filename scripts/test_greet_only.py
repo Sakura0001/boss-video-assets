@@ -215,9 +215,11 @@ class EligibilityPolicyTests(unittest.TestCase):
         cases = (
             "上海 算法工程师",
             "上海 电子/通信（行业）",
+            "上海 通信工程师",
             "上海 硬件工程师",
             "上海 Web前端",
             "上海 Unity3D开发",
+            "上海 u N i T y3D开发",
             "上海 电气工程师",
         )
         for expectation in cases:
@@ -233,6 +235,13 @@ class EligibilityPolicyTests(unittest.TestCase):
     def test_allows_empty_expectation_to_continue_existing_gate(self):
         result = self.policy.evaluate(candidate(expect=""))
         self.assertTrue(result.eligible)
+
+    def test_empty_expectation_preserves_existing_rejection_reason(self):
+        result = self.policy.evaluate(
+            candidate(expect="", base_info="28年应届生 / 硕士")
+        )
+        self.assertFalse(result.eligible)
+        self.assertEqual(result.reason, "graduation_year")
 
     def test_rejects_unknown_school(self):
         result = self.policy.evaluate(
@@ -790,6 +799,10 @@ class CampaignRunnerTests(unittest.TestCase):
         self.assertEqual(result.final_count, 1)
         self.assertEqual([item[0] for item in boss.greeted], ["allowed"])
         self.assertNotIn("blocked", store.deduped)
+        self.assertEqual([item[0] for item in boss.sequence_calls], ["allowed"])
+        self.assertEqual(len(boss.sent), 3)
+        self.assertEqual(boss.sent, list(self.messages))
+        self.assertNotIn("blocked", [item[0] for item in boss.sequence_calls])
 
     def test_default_job_is_discovered_once_and_used_for_all_actions(self):
         good = candidate(geek_id="good", name="合格同学")
