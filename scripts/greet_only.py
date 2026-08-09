@@ -30,6 +30,14 @@ REQUIRED_MESSAGE_HEADINGS = (
     "一条合并岗位介绍",
     "索要附件简历",
 )
+BLOCKED_EXPECTATION_KEYWORDS = (
+    "算法",
+    "通信",
+    "硬件",
+    "前端",
+    "unity",
+    "电气",
+)
 
 
 class CampaignError(RuntimeError):
@@ -368,6 +376,12 @@ class EligibilityPolicy:
         return self._find_major(current_majors)
 
     def evaluate(self, candidate: Candidate) -> EligibilityResult:
+        normalized_expectation = _normalize(candidate.expect)
+        if any(
+            _normalize(keyword) in normalized_expectation
+            for keyword in BLOCKED_EXPECTATION_KEYWORDS
+        ):
+            return EligibilityResult(False, "expectation_blocked")
         base = candidate.base_info
         if not re.search(r"(?:27年应届生|2027(?:年|届)?)", base):
             return EligibilityResult(False, "graduation_year")
