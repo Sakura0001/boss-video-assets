@@ -236,12 +236,44 @@ class EligibilityPolicyTests(unittest.TestCase):
         result = self.policy.evaluate(candidate(expect=""))
         self.assertTrue(result.eligible)
 
-    def test_empty_expectation_preserves_existing_rejection_reason(self):
-        result = self.policy.evaluate(
-            candidate(expect="", base_info="28年应届生 / 硕士")
+    def test_empty_expectation_preserves_existing_rejection_reasons(self):
+        cases = (
+            (
+                "graduation_year",
+                candidate(expect="", base_info="28年应届生 / 硕士"),
+            ),
+            (
+                "degree",
+                candidate(expect="", base_info="27年应届生 / 大专"),
+            ),
+            (
+                "school_unknown_or_ineligible",
+                candidate(
+                    expect="",
+                    education=(
+                        EducationRecord(
+                            "2024", "2027", "某大学", "人工智能", "博士"
+                        ),
+                    ),
+                ),
+            ),
+            (
+                "major_unknown_or_ineligible",
+                candidate(
+                    expect="",
+                    education=(
+                        EducationRecord(
+                            "2024", "2027", "浙江大学", "气象学", "博士"
+                        ),
+                    ),
+                ),
+            ),
         )
-        self.assertFalse(result.eligible)
-        self.assertEqual(result.reason, "graduation_year")
+        for reason, item in cases:
+            with self.subTest(reason=reason):
+                result = self.policy.evaluate(item)
+                self.assertFalse(result.eligible)
+                self.assertEqual(result.reason, reason)
 
     def test_rejects_unknown_school(self):
         result = self.policy.evaluate(
