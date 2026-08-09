@@ -110,6 +110,30 @@ class SkillContractTest(unittest.TestCase):
         self.assertIn('unknown_profile_action: "no_reply"', policy)
         self.assertIn("不要求技术经历", policy)
 
+    def test_expectation_keyword_blocklist_is_documented(self):
+        documents = (
+            self.skill,
+            self.reference_text["school_policy.yaml"],
+            self.reference_text["auto_greet.md"],
+        )
+        required_semantics = (
+            "固定列表仅为六项：算法、通信、硬件、前端、unity、电气",
+            "先移除求职期望中的全部空白并转为小写",
+            "子串匹配",
+            "expectation_blocked",
+            "不打招呼",
+            "不发送后续三条",
+            "完整求职期望不得写入本地状态或 Git",
+            "为空或未命中时，继续毕业年份、学历、学校、专业和去重门槛",
+        )
+        for document in documents:
+            for keyword in ("算法", "通信", "硬件", "前端", "unity", "电气"):
+                self.assertIn(keyword, document)
+            self.assertIn("求职期望", document)
+            self.assertIn("不打招呼", document)
+            for semantic in required_semantics:
+                self.assertIn(semantic, document)
+
     def test_target_school_catalog_is_structured_and_expanded(self):
         catalog = self.reference_text["target_schools.md"]
         rows = re.findall(

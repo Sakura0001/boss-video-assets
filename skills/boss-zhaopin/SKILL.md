@@ -27,6 +27,7 @@ Do not update the CLI automatically. A locally patched CLI may be in use; report
 
 Before replying to any inbound chat or greeting any recommendation, confirm every field below from the visible profile:
 
+- 先移除求职期望中的全部空白并转为小写，再对固定硬编码列表做子串匹配；固定列表仅为六项：算法、通信、硬件、前端、unity、电气。命中时内部原因 `expectation_blocked`，不回复、不打招呼、不发送后续三条消息，完整求职期望不得写入本地状态或 Git。为空或未命中时，继续毕业年份、学历、学校、专业和去重门槛。
 - 2027 graduation year.
 - Bachelor or postgraduate degree.
 - At least one school in the visible education history is in
