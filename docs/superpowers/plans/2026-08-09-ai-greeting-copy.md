@@ -17,11 +17,16 @@
 - Do not run `boss`, open a live recruiting session, or send any candidate message during implementation or testing.
 - Do not stage local state, candidate data, chat text, credentials, or unrelated files.
 
+## Plan Review Correction
+
+Execution review applied the `writing-good-tests.md` rule that document text should be verified through its real consumer. The exact-copy red/green test therefore lives in `scripts/test_greet_only.py` and calls `load_greeting_messages` against the repository knowledge base. The source `test_skill_contract.py` checks the three machine-readable sections structurally instead of duplicating exact business copy as a text-search assertion.
+
 ---
 
 ### Task 1: Update and validate the authoritative source skill
 
 **Files:**
+- Modify: `scripts/test_greet_only.py`
 - Modify: `/Users/yuyu/.codex/skills/boss-zhaopin/scripts/test_skill_contract.py:32-38`
 - Modify: `/Users/yuyu/.codex/skills/boss-zhaopin/references/greetings.md`
 - Modify: `/Users/yuyu/.codex/skills/boss-zhaopin/references/recruiter_voice.md`
@@ -32,7 +37,7 @@
 
 **Interfaces:**
 - Consumes: the three approved messages in `docs/superpowers/specs/2026-08-09-ai-greeting-copy-design.md`.
-- Produces: a validated installed skill whose `references/greetings.md` exposes exactly three ordered, single-line inline-code messages to `load_greeting_messages(path) -> Tuple[str, str, str]`.
+- Produces: a validated installed skill whose `references/greetings.md` exposes exactly three ordered, single-line inline-code messages to `load_greeting_messages(path) -> Tuple[str, str, str]`, plus a consumer-level regression test that pins the resulting tuple.
 
 - [ ] **Step 1: Replace the old opening assertion with an exact three-message contract test**
 
@@ -176,7 +181,7 @@ git diff -- skills/boss-zhaopin
 git diff --check
 ```
 
-Expected: only the six files listed under Task 2 are modified, with no whitespace errors and no unrelated source, state, or candidate files.
+Expected: the six mirrored skill files, `scripts/test_greet_only.py`, and this reviewed plan are modified, with no whitespace errors and no unrelated source, state, or candidate files.
 
 - [ ] **Step 3: Run repository-mirror and runner tests**
 
@@ -186,7 +191,7 @@ Run each command separately:
 python3 skills/boss-zhaopin/scripts/test_runtime_store.py
 python3 skills/boss-zhaopin/scripts/test_skill_contract.py
 python3 skills/boss-zhaopin/scripts/test_sync_repo_copy.py
-python3 scripts/test_greet_only.py
+python3 -m unittest scripts.test_greet_only
 python3 scripts/greet_only.py --validate-only
 python3 /Users/yuyu/.codex/skills/boss-zhaopin/scripts/sync_repo_copy.py --destination /Users/yuyu/Documents/boss招聘/skills/boss-zhaopin --check
 ```
@@ -198,12 +203,12 @@ Expected: every unittest reports `OK`; `--validate-only` returns JSON with `"val
 Run:
 
 ```bash
-git add skills/boss-zhaopin/scripts/test_skill_contract.py skills/boss-zhaopin/references/greetings.md skills/boss-zhaopin/references/recruiter_voice.md skills/boss-zhaopin/references/risk_policy.yaml skills/boss-zhaopin/references/faq_salary.md skills/boss-zhaopin/references/faq_worktime.md
+git add scripts/test_greet_only.py docs/superpowers/plans/2026-08-09-ai-greeting-copy.md skills/boss-zhaopin/scripts/test_skill_contract.py skills/boss-zhaopin/references/greetings.md skills/boss-zhaopin/references/recruiter_voice.md skills/boss-zhaopin/references/risk_policy.yaml skills/boss-zhaopin/references/faq_salary.md skills/boss-zhaopin/references/faq_worktime.md
 git diff --cached --check
 git diff --cached --stat
 ```
 
-Expected: six files staged, no whitespace errors, and no design/plan/state/privacy files accidentally added.
+Expected: eight task files staged, no whitespace errors, and no state/privacy or unrelated files accidentally added.
 
 - [ ] **Step 5: Commit the verified implementation**
 
@@ -213,7 +218,7 @@ Run:
 git commit -m "feat: update proactive AI greeting copy"
 ```
 
-Expected: one commit containing only the six mirror files.
+Expected: one commit containing only the six mirror files, the consumer regression test, and the reviewed plan correction.
 
 - [ ] **Step 6: Push and verify the branch state**
 

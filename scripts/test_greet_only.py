@@ -136,6 +136,25 @@ def candidate(
 
 
 class GreetingKnowledgeBaseTests(unittest.TestCase):
+    def test_repository_knowledge_base_loads_approved_plain_text_messages(self):
+        path = (
+            Path(__file__).resolve().parents[1]
+            / "skills"
+            / "boss-zhaopin"
+            / "references"
+            / "greetings.md"
+        )
+        expected = (
+            "我们团队正在探索AI时代下一代智能应用形态，围绕大语言模型（LLM）、AI Agent、RAG、知识增强、智能工作流、多Agent协同等技术方向，打造能够理解任务、主动分析、自动执行的企业级智能应用，让AI真正进入实际业务场景。",
+            "目前AI Agent方向处于快速发展阶段，团队持续投入前沿技术探索和产品落地，覆盖智能助手、自动化决策、智能分析、企业知识管理、AIOps等多个场景。加入团队后可以深入参与从模型应用设计、Agent架构搭建到生产系统落地的完整流程，积累AI时代核心技术能力。",
+            "我看了一下你的背景，和我们AI应用研发方向有一定匹配度。如果方便的话，辛苦发我一份附件简历，我可以进一步帮你评估岗位匹配情况，也欢迎你了解一下我们的技术方向和发展机会。我们这边相对wlb一些，自盈利部门，年终奖可以保证，日常加班可以随意申报，也不会强制要求来。部门整体氛围好，新老员工无断层现象，跳槽到外面的员工都有很大幅度的涨薪，不需要担心个人竞争力。",
+        )
+
+        messages = load_greeting_messages(path)
+
+        self.assertEqual(messages, expected)
+        self.assertTrue(all("**" not in message for message in messages))
+
     def test_loads_exact_messages_in_required_order(self):
         content = """# 主动打招呼话术
 

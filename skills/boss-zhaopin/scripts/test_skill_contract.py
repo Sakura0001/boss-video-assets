@@ -29,13 +29,19 @@ class SkillContractTest(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertTrue(match.group(1).strip('"').startswith("Use when"))
 
-    def test_approved_opening_is_present(self):
-        expected = (
-            "我这边主要是华为数据库业务相关团队，方向包括TaurusDB、RDS、GaussDB、GeminiDB、Redis等，"
-            "岗位主要偏数据库内核和管理系统研发和测试。数据库业务是公司重点投入方向，目前也在拓展海外市场，"
-            "后续业务空间比较大。这个领域本身比较垂直，技术积累会比较深，长期做下来也更容易形成自己的技术护城河。"
-        )
-        self.assertIn(expected, self.reference_text["greetings.md"])
+    def test_proactive_greeting_has_three_machine_readable_sections(self):
+        greetings = self.reference_text["greetings.md"]
+        for heading in ("真人化说明", "一条合并岗位介绍", "索要附件简历"):
+            section = re.search(
+                rf"^###\s+{re.escape(heading)}\s*$"
+                rf"(?P<body>.*?)(?=^###\s+|\Z)",
+                greetings,
+                re.MULTILINE | re.DOTALL,
+            )
+            self.assertIsNotNone(section)
+            snippets = re.findall(r"`([^`\r\n]+)`", section.group("body"))
+            self.assertEqual(len(snippets), 1)
+            self.assertTrue(snippets[0].strip())
 
     def test_resume_and_application_status_copy_is_exact(self):
         self.assertIn("收到同学，我先看下你的简历，稍等一下。", self.all_text)
