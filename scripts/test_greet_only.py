@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from scripts.greet_only import (
+    BLOCKED_EXPECTATION_KEYWORDS,
     BossCli,
     CampaignError,
     CampaignRunner,
@@ -220,6 +221,7 @@ class EligibilityPolicyTests(unittest.TestCase):
             "上海 Web前端",
             "上海 Unity3D开发",
             "上海 u N i T y3D开发",
+            "上海 U\tN\nI\u3000T y3D开发",
             "上海 电气工程师",
         )
         for expectation in cases:
@@ -227,6 +229,12 @@ class EligibilityPolicyTests(unittest.TestCase):
                 result = self.policy.evaluate(candidate(expect=expectation))
                 self.assertFalse(result.eligible)
                 self.assertEqual(result.reason, "expectation_blocked")
+
+    def test_blocked_expectation_keywords_are_exact(self):
+        self.assertEqual(
+            BLOCKED_EXPECTATION_KEYWORDS,
+            ("算法", "通信", "硬件", "前端", "unity", "电气"),
+        )
 
     def test_allows_expectation_without_blocked_keyword(self):
         result = self.policy.evaluate(candidate(expect="上海 后端开发"))
@@ -831,6 +839,8 @@ class CampaignRunnerTests(unittest.TestCase):
         self.assertEqual(result.final_count, 1)
         self.assertEqual([item[0] for item in boss.greeted], ["allowed"])
         self.assertNotIn("blocked", store.deduped)
+        self.assertEqual([item[0] for item in store.events], ["allowed"])
+        self.assertEqual([item[0] for item in store.states], ["allowed"])
         self.assertEqual([item[0] for item in boss.sequence_calls], ["allowed"])
         self.assertEqual(len(boss.sent), 3)
         self.assertEqual(boss.sent, list(self.messages))
