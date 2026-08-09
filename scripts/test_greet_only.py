@@ -97,6 +97,7 @@ def candidate(
     name="候选人",
     base_info="27年应届生 / 博士",
     experience="浙江大学 人工智能",
+    expect="上海 后端开发",
     advantage="",
     highlights=None,
     education=None,
@@ -124,7 +125,7 @@ def candidate(
         geek_id=geek_id,
         name=name,
         base_info=base_info,
-        expect="上海 算法工程师",
+        expect=expect,
         experience=experience,
         advantage=advantage,
         highlights=tuple(highlights or ()),
@@ -209,6 +210,29 @@ class EligibilityPolicyTests(unittest.TestCase):
         self.assertEqual(result.school, "浙江大学")
         self.assertEqual(result.major, "人工智能")
         self.assertEqual(result.degree, "博士")
+
+    def test_rejects_blocked_expectation_keywords(self):
+        cases = (
+            "上海 算法工程师",
+            "上海 电子/通信（行业）",
+            "上海 硬件工程师",
+            "上海 Web前端",
+            "上海 Unity3D开发",
+            "上海 电气工程师",
+        )
+        for expectation in cases:
+            with self.subTest(expectation=expectation):
+                result = self.policy.evaluate(candidate(expect=expectation))
+                self.assertFalse(result.eligible)
+                self.assertEqual(result.reason, "expectation_blocked")
+
+    def test_allows_expectation_without_blocked_keyword(self):
+        result = self.policy.evaluate(candidate(expect="上海 后端开发"))
+        self.assertTrue(result.eligible)
+
+    def test_allows_empty_expectation_to_continue_existing_gate(self):
+        result = self.policy.evaluate(candidate(expect=""))
+        self.assertTrue(result.eligible)
 
     def test_rejects_unknown_school(self):
         result = self.policy.evaluate(
@@ -746,6 +770,26 @@ class CampaignRunnerTests(unittest.TestCase):
                 ("ai应用研发工程师", True),
             ],
         )
+
+    def test_skips_blocked_expectation_before_greeting(self):
+        blocked = candidate(
+            geek_id="blocked",
+            name="拦截候选人",
+            expect="上海 算法工程师",
+        )
+        allowed = candidate(
+            geek_id="allowed",
+            name="正常候选人",
+            expect="上海 后端开发",
+        )
+        boss = FakeBoss([[blocked, allowed]])
+        store = FakeStore()
+
+        result = self.runner(boss, store, target=1).run()
+
+        self.assertEqual(result.final_count, 1)
+        self.assertEqual([item[0] for item in boss.greeted], ["allowed"])
+        self.assertNotIn("blocked", store.deduped)
 
     def test_default_job_is_discovered_once_and_used_for_all_actions(self):
         good = candidate(geek_id="good", name="合格同学")
