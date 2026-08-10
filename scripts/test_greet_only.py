@@ -223,6 +223,9 @@ class EligibilityPolicyTests(unittest.TestCase):
             "上海 u N i T y3D开发",
             "上海 U\tN\nI\u3000T y3D开发",
             "上海 电气工程师",
+            "上海 数据工程师",
+            "上海 产品经理",
+            "上海 商业分析",
         )
         for expectation in cases:
             with self.subTest(expectation=expectation):
@@ -233,7 +236,17 @@ class EligibilityPolicyTests(unittest.TestCase):
     def test_blocked_expectation_keywords_are_exact(self):
         self.assertEqual(
             BLOCKED_EXPECTATION_KEYWORDS,
-            ("算法", "通信", "硬件", "前端", "unity", "电气"),
+            (
+                "算法",
+                "通信",
+                "硬件",
+                "前端",
+                "unity",
+                "电气",
+                "数据",
+                "产品",
+                "分析",
+            ),
         )
 
     def test_allows_expectation_without_blocked_keyword(self):
@@ -821,30 +834,45 @@ class CampaignRunnerTests(unittest.TestCase):
         )
 
     def test_skips_blocked_expectation_before_greeting(self):
-        blocked = candidate(
-            geek_id="blocked",
-            name="拦截候选人",
-            expect="上海 算法工程师",
-        )
+        blocked = [
+            candidate(
+                geek_id="blocked-data",
+                name="数据候选人",
+                expect="上海 数据工程师",
+            ),
+            candidate(
+                geek_id="blocked-product",
+                name="产品候选人",
+                expect="上海 产品经理",
+            ),
+            candidate(
+                geek_id="blocked-analysis",
+                name="分析候选人",
+                expect="上海 商业分析",
+            ),
+        ]
         allowed = candidate(
             geek_id="allowed",
             name="正常候选人",
             expect="上海 后端开发",
         )
-        boss = FakeBoss([[blocked, allowed]])
+        boss = FakeBoss([[*blocked, allowed]])
         store = FakeStore()
 
         result = self.runner(boss, store, target=1).run()
 
         self.assertEqual(result.final_count, 1)
         self.assertEqual([item[0] for item in boss.greeted], ["allowed"])
-        self.assertNotIn("blocked", store.deduped)
+        blocked_ids = {item.geek_id for item in blocked}
+        self.assertTrue(blocked_ids.isdisjoint(store.deduped))
         self.assertEqual([item[0] for item in store.events], ["allowed"])
         self.assertEqual([item[0] for item in store.states], ["allowed"])
         self.assertEqual([item[0] for item in boss.sequence_calls], ["allowed"])
         self.assertEqual(len(boss.sent), 3)
         self.assertEqual(boss.sent, list(self.messages))
-        self.assertNotIn("blocked", [item[0] for item in boss.sequence_calls])
+        self.assertTrue(
+            blocked_ids.isdisjoint(item[0] for item in boss.sequence_calls)
+        )
 
     def test_default_job_is_discovered_once_and_used_for_all_actions(self):
         good = candidate(geek_id="good", name="合格同学")

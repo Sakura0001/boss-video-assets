@@ -117,7 +117,7 @@ class SkillContractTest(unittest.TestCase):
             self.reference_text["auto_greet.md"],
         )
         required_semantics = (
-            "固定列表仅为六项：算法、通信、硬件、前端、unity、电气",
+            "固定列表仅为九项：算法、通信、硬件、前端、unity、电气、数据、产品、分析",
             "先移除求职期望中的全部空白并转为小写",
             "子串匹配",
             "expectation_blocked",
@@ -127,7 +127,17 @@ class SkillContractTest(unittest.TestCase):
             "为空或未命中时，继续毕业年份、学历、学校、专业和去重门槛",
         )
         for document in documents:
-            for keyword in ("算法", "通信", "硬件", "前端", "unity", "电气"):
+            for keyword in (
+                "算法",
+                "通信",
+                "硬件",
+                "前端",
+                "unity",
+                "电气",
+                "数据",
+                "产品",
+                "分析",
+            ):
                 self.assertIn(keyword, document)
             self.assertIn("求职期望", document)
             self.assertIn("不打招呼", document)

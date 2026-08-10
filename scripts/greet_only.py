@@ -37,6 +37,9 @@ BLOCKED_EXPECTATION_KEYWORDS = (
     "前端",
     "unity",
     "电气",
+    "数据",
+    "产品",
+    "分析",
 )
 
 
