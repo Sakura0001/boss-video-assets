@@ -144,6 +144,25 @@ class SkillContractTest(unittest.TestCase):
             for semantic in required_semantics:
                 self.assertIn(semantic, document)
 
+    def test_one_run_major_filter_bypass_is_explicitly_scoped(self):
+        documents = (
+            self.skill,
+            self.reference_text["school_policy.yaml"],
+            self.reference_text["auto_greet.md"],
+            self.reference_text["greetings.md"],
+            self.reference_text["risk_policy.yaml"],
+        )
+        required_semantics = (
+            "--skip-major-filter",
+            "专业为空、缺失或无法识别",
+            "仅适用于本次主动打招呼",
+            "不适用于未读聊天",
+            "不得绕过求职期望、2027 届、学历、学校和去重门槛",
+        )
+        for document in documents:
+            for semantic in required_semantics:
+                self.assertIn(semantic, document)
+
     def test_target_school_catalog_is_structured_and_expanded(self):
         catalog = self.reference_text["target_schools.md"]
         rows = re.findall(

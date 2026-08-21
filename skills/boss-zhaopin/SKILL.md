@@ -38,7 +38,9 @@ Before replying to any inbound chat or greeting any recommendation, confirm ever
 - Major need not match the allowlist text exactly. Accept school-specific names when their meaning clearly indicates a computer-related major or closely matches one direction in `references/school_policy.yaml`; ambiguous or unrelated majors do not qualify.
 - In deterministic automation, resolve non-canonical major names only through `major_aliases` in `references/school_policy.yaml`. Do not invent mappings at runtime; add and validate an approved alias before automating it.
 
-No technical experience is required. If school, major, degree, or graduation year is missing, ambiguous, or ineligible, do not reply and do not explain the internal filter.
+No technical experience is required. Outside the approved one-run proactive-greeting exception below, if school, major, degree, or graduation year is missing, ambiguous, or ineligible, do not reply and do not explain the internal filter.
+
+仅当用户明确要求本次主动打招呼不限制专业且执行器显式携带 --skip-major-filter 时，专业为空、缺失或无法识别也可继续；该例外仅适用于本次主动打招呼，不持久化，不适用于未读聊天、已有会话回复、简历评估或后续运行，也不得绕过求职期望、2027 届、学历、学校和去重门槛。
 
 ## Automatic Run Order
 
