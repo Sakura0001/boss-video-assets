@@ -14,7 +14,7 @@ Windows PowerShell 使用：
 py -3 .\scripts\greet_only.py --skip-major-filter --target 150 --max-scans 1500
 ```
 
-`--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。未提供 --job 时使用 Boss 推荐页当前默认岗位，不把 `agent.yaml` 的 `default_job_keyword` 当作所选岗位，也不强制覆盖岗位。不带该参数时，执行器继续使用默认专业门槛。该命令是完整流程：runner 内部完成计数、推荐、资格筛选、去重、打招呼、精确会话/三条消息及状态记录。该开关及其配置不持久化；招呼、去重和候选人阶段仍按运行时规则记录。启动 runner 后不得执行手工流程分支或另行调用 `boss greet`。
+`--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。未提供 --job 时使用 Boss 推荐页当前默认岗位，不把 `agent.yaml` 的 `default_job_keyword` 当作所选岗位，也不强制覆盖岗位。不带该参数时，执行器继续使用默认专业门槛。该命令是完整流程：执行锁内、推荐前自动运行 runtime `init`、runtime `purge --as-of <Shanghai ISO>`、`boss help` 和 `boss list --unread`。`boss list --unread` 仅用于验证登录，不处理或回复未读聊天，也不处理到期跟进。如需登录，runner 自动打开并轮询登录；登录后获取首个推荐批次。使用 runner 时不得手工运行这些预检命令。runner 内部完成计数、推荐、资格筛选、去重、打招呼、精确会话/三条消息及状态记录。该开关及其配置不持久化；招呼、去重和候选人阶段仍按运行时规则记录。启动 runner 后不得执行手工流程分支或另行调用 `boss greet`。
 
 ## Runner 内部流程与手工参考
 

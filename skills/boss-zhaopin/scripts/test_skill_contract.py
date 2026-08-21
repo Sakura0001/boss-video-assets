@@ -233,6 +233,29 @@ class SkillContractTest(unittest.TestCase):
         )
         self.assertIn("完整自动招聘请求中，先处理未读聊天，再处理到期跟进", self.skill)
 
+    def test_greet_only_runner_owns_lock_contained_preflight(self):
+        preflight = (
+            "执行锁内、推荐前自动运行 runtime `init`、runtime "
+            "`purge --as-of <Shanghai ISO>`、`boss help` 和 "
+            "`boss list --unread`。"
+        )
+        login_only = (
+            "`boss list --unread` 仅用于验证登录，不处理或回复未读聊天，"
+            "也不处理到期跟进。"
+        )
+        post_login = "如需登录，runner 自动打开并轮询登录；登录后获取首个推荐批次。"
+        no_manual_preflight = "使用 runner 时不得手工运行这些预检命令。"
+
+        for document in (self.skill, self.reference_text["auto_greet.md"]):
+            self.assertIn(preflight, document)
+            self.assertIn(login_only, document)
+            self.assertIn(post_login, document)
+            self.assertIn(no_manual_preflight, document)
+
+        cli = self.reference_text["boss_cli.md"]
+        self.assertIn("自动预检", cli)
+        self.assertIn("auto_greet.md", cli)
+
     def test_target_school_catalog_is_structured_and_expanded(self):
         catalog = self.reference_text["target_schools.md"]
         rows = re.findall(

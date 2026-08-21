@@ -16,9 +16,9 @@ Pause only for login, platform risk, an unknown business answer, an ambiguous ex
 ## Required Startup
 
 1. Load `references/agent.yaml`, `references/school_policy.yaml`, `references/candidate_conversion.md`, `references/automation_runtime.md`, and `references/risk_policy.yaml`.
-2. Run the runtime helper `init` and `purge` commands from `automation_runtime.md`.
-3. Check the CLI with `boss help`, then use `boss list --unread` to verify login.
-4. If login is required, run `boss login`; after the user completes login, retry `boss list --unread` and continue automatically.
+2. For the deterministic greet-only runner, do not manually run runtime or login preflight commands; it owns them inside its execution lock.
+3. For the manual or full automatic-recruiting workflow, run the runtime helper `init` and `purge` commands from `automation_runtime.md`.
+4. For the manual or full automatic-recruiting workflow, check the CLI with `boss help`, then use `boss list --unread` to verify login. If login is required, run `boss login`; after the user completes login, retry `boss list --unread` and continue automatically.
 5. greet-only 请求中，`boss list --unread` 仅用于验证登录，不得处理未读聊天或到期跟进。
 6. 完整自动招聘请求中，先处理未读聊天，再处理到期跟进，最后处理新推荐直到每日招呼上限。
 
@@ -65,7 +65,7 @@ Choose exactly one branch.
 
 #### A. 确定性执行器分支
 
-Use `scripts/greet_only.py` for the explicit one-run proactive greeting. `--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。未提供 --job 时使用 Boss 推荐页当前默认岗位，不把 `agent.yaml` 的 `default_job_keyword` 当作所选岗位，也不强制覆盖岗位。runner 内部完成计数、推荐、资格筛选、去重、打招呼、精确会话/三条消息及状态记录。该开关及其配置不持久化；招呼、去重和候选人阶段仍按运行时规则记录。启动 runner 后不得执行手工流程分支或另行调用 `boss greet`。
+Use `scripts/greet_only.py` for the explicit one-run proactive greeting. `--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。未提供 --job 时使用 Boss 推荐页当前默认岗位，不把 `agent.yaml` 的 `default_job_keyword` 当作所选岗位，也不强制覆盖岗位。执行锁内、推荐前自动运行 runtime `init`、runtime `purge --as-of <Shanghai ISO>`、`boss help` 和 `boss list --unread`。`boss list --unread` 仅用于验证登录，不处理或回复未读聊天，也不处理到期跟进。如需登录，runner 自动打开并轮询登录；登录后获取首个推荐批次。使用 runner 时不得手工运行这些预检命令。runner 内部完成计数、推荐、资格筛选、去重、打招呼、精确会话/三条消息及状态记录。该开关及其配置不持久化；招呼、去重和候选人阶段仍按运行时规则记录。启动 runner 后不得执行手工流程分支或另行调用 `boss greet`。
 
 #### B. 手工流程分支
 

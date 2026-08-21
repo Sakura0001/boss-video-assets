@@ -625,6 +625,8 @@ Expected: 提交只包含同步镜像和本实施计划；源安装目录本身�
 - Consumes: Tasks 1–5 的代码、测试和规则镜像。
 - Produces: 可用于真实运行的已验证、已审查、已推送版本。
 
+> 最终审查发现 greet-only runner 的预检文档与实现不一致；代码提交 `88cda35` 已在执行锁内实现自动 `init`、`purge`、CLI/login 验证及首个推荐批次。对应 source skill 契约与文档已补充。本 Task 仍待最终复审和推送，不标记完成。
+
 - [ ] **Step 1: 运行完整离线验证**
 
 Run:
