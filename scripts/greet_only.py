@@ -475,22 +475,29 @@ class BossCli:
 
         self._run(["help"])
         try:
-            batch = self.recommend(job, refresh=False)
-            print(
-                json.dumps(
-                    {
-                        "event": "login-ready",
-                        "job": batch.job,
-                        "message": "Boss 已登录，开始执行",
-                    },
-                    ensure_ascii=False,
-                ),
-                flush=True,
-            )
-            return batch
+            self._run(["list", "--unread"])
         except CampaignError as exc:
             if not self._login_is_required(exc):
                 raise
+        else:
+            try:
+                batch = self.recommend(job, refresh=False)
+            except CampaignError as exc:
+                if not self._login_is_required(exc):
+                    raise
+            else:
+                print(
+                    json.dumps(
+                        {
+                            "event": "login-ready",
+                            "job": batch.job,
+                            "message": "Boss 已登录，开始执行",
+                        },
+                        ensure_ascii=False,
+                    ),
+                    flush=True,
+                )
+                return batch
 
         self._run(["login"])
         print(
@@ -514,6 +521,7 @@ class BossCli:
                 )
             sleep(poll_interval_seconds)
             try:
+                self._run(["list", "--unread"])
                 batch = self.recommend(job, refresh=False)
                 print(
                     json.dumps(
@@ -713,6 +721,12 @@ class RuntimeStoreCli:
         if not isinstance(value, dict):
             raise CampaignError("运行状态命令未返回 JSON 对象")
         return value
+
+    def initialize(self) -> Mapping[str, object]:
+        return self._run_json(["init"])
+
+    def purge(self, as_of: str) -> Mapping[str, object]:
+        return self._run_json(["purge", "--as-of", as_of])
 
     def greeting_count(self, date: str) -> int:
         return int(self._run_json(["greeting-count", "--date", date])["count"])
@@ -1056,6 +1070,28 @@ class CampaignLock:
             pass
 
 
+def prepare_live_run(
+    *,
+    store: RuntimeStoreCli,
+    boss: BossCli,
+    job: Optional[str],
+    now: Callable[[], datetime],
+    login_timeout_seconds: float,
+    login_poll_interval_seconds: float,
+) -> RecommendationBatch:
+    current = now()
+    if current.tzinfo is None:
+        raise CampaignError("当前时间必须包含时区")
+    as_of = current.astimezone(SHANGHAI).isoformat()
+    store.initialize()
+    store.purge(as_of)
+    return boss.ensure_logged_in(
+        job=job,
+        timeout_seconds=login_timeout_seconds,
+        poll_interval_seconds=login_poll_interval_seconds,
+    )
+
+
 def _state_root() -> Path:
     configured = os.environ.get("BOSS_ZHAOPIN_STATE_DIR", "").strip()
     if configured:
@@ -1156,6 +1192,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     boss = BossCli()
     store = RuntimeStoreCli(skill_root / "scripts" / "runtime_store.py")
+    now = lambda: datetime.now(SHANGHAI)
     runner = CampaignRunner(
         boss=boss,
         store=store,
@@ -1164,16 +1201,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         job=args.job,
         target=args.target,
         max_scans=args.max_scans,
-        now=lambda: datetime.now(SHANGHAI),
+        now=now,
         require_major=not args.skip_major_filter,
     )
     lock_path = _state_root() / "greet-only.lock"
     try:
         with CampaignLock(lock_path):
-            initial_batch = boss.ensure_logged_in(
+            initial_batch = prepare_live_run(
+                store=store,
+                boss=boss,
                 job=args.job,
-                timeout_seconds=args.login_timeout,
-                poll_interval_seconds=args.login_poll_interval,
+                now=now,
+                login_timeout_seconds=args.login_timeout,
+                login_poll_interval_seconds=args.login_poll_interval,
             )
             result = runner.run(initial_batch=initial_batch)
     except KeyboardInterrupt:

@@ -1,11 +1,13 @@
 import io
 import json
+import scripts.greet_only as greet_only
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.greet_only import (
     BLOCKED_EXPECTATION_KEYWORDS,
@@ -790,7 +792,11 @@ class BossCliTests(unittest.TestCase):
 
     def test_login_is_skipped_when_session_is_ready(self):
         cli = self.CapturingBossCli(
-            ["help", '{"job":"用户当前岗位","candidates":[]}']
+            [
+                "help",
+                "未读聊天输出",
+                '{"job":"用户当前岗位","candidates":[]}',
+            ]
         )
 
         batch = cli.ensure_logged_in(sleep=lambda _: None)
@@ -798,7 +804,11 @@ class BossCliTests(unittest.TestCase):
         self.assertEqual(batch.job, "用户当前岗位")
         self.assertEqual(
             cli.calls,
-            [["help"], ["recommend", "--json", "--automation"]],
+            [
+                ["help"],
+                ["list", "--unread"],
+                ["recommend", "--json", "--automation"],
+            ],
         )
 
     def test_login_opens_browser_and_waits_until_session_is_ready(self):
@@ -811,6 +821,7 @@ class BossCliTests(unittest.TestCase):
                 login_required,
                 "Boss 登录页已打开",
                 login_required,
+                "未读聊天输出",
                 '{"job":"用户当前岗位","candidates":[]}',
             ]
         )
@@ -827,22 +838,24 @@ class BossCliTests(unittest.TestCase):
             cli.calls,
             [
                 ["help"],
-                ["recommend", "--json", "--automation"],
+                ["list", "--unread"],
                 ["login"],
-                ["recommend", "--json", "--automation"],
+                ["list", "--unread"],
+                ["list", "--unread"],
                 ["recommend", "--json", "--automation"],
             ],
         )
 
     def test_non_login_error_does_not_open_login_page(self):
         cli = self.CapturingBossCli(
-            ["help", CampaignError("boss recommend 失败：页面结构异常")]
+            ["help", CampaignError("boss list 失败：页面结构异常")]
         )
 
         with self.assertRaisesRegex(CampaignError, "页面结构异常"):
             cli.ensure_logged_in(sleep=lambda _: None)
 
         self.assertNotIn(["login"], cli.calls)
+        self.assertEqual(cli.calls, [["help"], ["list", "--unread"]])
 
     def test_login_wait_has_a_hard_timeout(self):
         login_required = CampaignError(
@@ -887,6 +900,18 @@ class BossCliTests(unittest.TestCase):
                 payload = json.loads(output.getvalue())
                 self.assertEqual(payload["majorFilterMode"], expected_mode)
 
+    def test_validate_only_skips_live_preflight(self):
+        with patch("scripts.greet_only.BossCli") as boss_class, patch(
+            "scripts.greet_only.RuntimeStoreCli"
+        ) as store_class:
+            output = io.StringIO()
+            with redirect_stdout(output):
+                result = main(["--validate-only"])
+
+        self.assertEqual(result, 0)
+        boss_class.assert_not_called()
+        store_class.assert_not_called()
+
 
 class RuntimeStoreCliTests(unittest.TestCase):
     class CapturingRuntimeStoreCli(RuntimeStoreCli):
@@ -897,6 +922,21 @@ class RuntimeStoreCliTests(unittest.TestCase):
         def _run_json(self, arguments):
             self.calls.append(list(arguments))
             return {}
+
+    def test_initialize_and_purge_use_exact_runtime_store_arguments(self):
+        store = self.CapturingRuntimeStoreCli()
+        as_of = "2026-08-21T10:11:12+08:00"
+
+        store.initialize()
+        store.purge(as_of)
+
+        self.assertEqual(
+            store.calls,
+            [
+                ["init"],
+                ["purge", "--as-of", as_of],
+            ],
+        )
 
     def test_persists_only_canonical_eligibility_major(self):
         item = candidate(
@@ -938,6 +978,51 @@ class RuntimeStoreCliTests(unittest.TestCase):
                     "气象学",
                     [argument for call in store.calls for argument in call],
                 )
+
+
+class LivePreflightTests(unittest.TestCase):
+    def test_preflight_orders_store_lifecycle_before_login_verification(self):
+        calls = []
+        expected_batch = RecommendationBatch("用户当前岗位", ())
+        as_of = datetime(2026, 8, 21, 10, 11, 12, tzinfo=SHANGHAI)
+
+        class CapturingStore:
+            def initialize(self):
+                calls.append(("initialize",))
+
+            def purge(self, value):
+                calls.append(("purge", value))
+
+        class CapturingBoss:
+            def ensure_logged_in(self, **kwargs):
+                calls.append(("ensure_logged_in", kwargs))
+                return expected_batch
+
+        result = greet_only.prepare_live_run(
+            store=CapturingStore(),
+            boss=CapturingBoss(),
+            job=None,
+            now=lambda: as_of,
+            login_timeout_seconds=17,
+            login_poll_interval_seconds=2.5,
+        )
+
+        self.assertIs(result, expected_batch)
+        self.assertEqual(
+            calls,
+            [
+                ("initialize",),
+                ("purge", "2026-08-21T10:11:12+08:00"),
+                (
+                    "ensure_logged_in",
+                    {
+                        "job": None,
+                        "timeout_seconds": 17,
+                        "poll_interval_seconds": 2.5,
+                    },
+                ),
+            ],
+        )
 
 
 class CampaignRunnerTests(unittest.TestCase):
