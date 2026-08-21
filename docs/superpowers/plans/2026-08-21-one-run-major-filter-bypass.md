@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3 标准库、`argparse`、`unittest`、Markdown/YAML skill 规则、SQLite、Boss CLI、Git。
 
-> **状态：** Tasks 1–5 已完成；Tasks 6–8 待执行。
+> **状态：** Tasks 1–6 已完成；Task 7 正在执行；Task 8 待执行。最终独立审查无 Critical/Important 问题，结论为可进入真实执行。
 
 ## 文件与职责
 
