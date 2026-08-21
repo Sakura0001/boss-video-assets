@@ -1,5 +1,8 @@
+import io
+import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -17,6 +20,7 @@ from scripts.greet_only import (
     RecommendationBatch,
     build_parser,
     load_greeting_messages,
+    main,
 )
 
 
@@ -858,6 +862,27 @@ class BossCliTests(unittest.TestCase):
         self.assertFalse(args.validate_only)
         self.assertEqual(args.target, 150)
 
+    def test_parser_major_filter_defaults_to_required_and_can_be_skipped(self):
+        required = build_parser().parse_args([])
+        skipped = build_parser().parse_args(["--skip-major-filter"])
+
+        self.assertFalse(required.skip_major_filter)
+        self.assertTrue(skipped.skip_major_filter)
+
+    def test_validate_only_reports_major_filter_mode(self):
+        for argv, expected_mode in (
+            (["--validate-only"], "required"),
+            (["--validate-only", "--skip-major-filter"], "skipped"),
+        ):
+            with self.subTest(argv=argv):
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    result = main(argv)
+
+                self.assertEqual(result, 0)
+                payload = json.loads(output.getvalue())
+                self.assertEqual(payload["majorFilterMode"], expected_mode)
+
 
 class CampaignRunnerTests(unittest.TestCase):
     def setUp(self):
@@ -878,6 +903,7 @@ class CampaignRunnerTests(unittest.TestCase):
         target=150,
         max_scans=150,
         job="ai应用研发工程师",
+        require_major=True,
     ):
         return CampaignRunner(
             boss=boss,
@@ -888,10 +914,46 @@ class CampaignRunnerTests(unittest.TestCase):
             target=target,
             max_scans=max_scans,
             now=self.now,
+            require_major=require_major,
             sleep=self.delays.append,
             random_delay=lambda low, high: 1.25,
             monotonic=lambda: 10.0,
         )
+
+    def test_skip_major_filter_allows_unknown_major_and_preserves_dedupe(self):
+        deduped_unknown = candidate(
+            geek_id="old-unknown",
+            name="已经联系未知专业",
+            education=(
+                EducationRecord("2024", "2027", "浙江大学", "气象学", "博士"),
+            ),
+        )
+        fresh_empty = candidate(
+            geek_id="fresh-empty",
+            name="新空专业",
+            education=(
+                EducationRecord("2024", "2027", "浙江大学", "", "博士"),
+            ),
+        )
+        boss = FakeBoss([[deduped_unknown, fresh_empty]])
+        store = FakeStore(deduped={"old-unknown"})
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            result = self.runner(
+                boss,
+                store,
+                target=1,
+                require_major=False,
+            ).run()
+
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual([item[0] for item in boss.greeted], ["fresh-empty"])
+        self.assertEqual(result.final_count, 1)
+        job_selected = next(
+            event for event in events if event["event"] == "job-selected"
+        )
+        self.assertEqual(job_selected["majorFilterMode"], "skipped")
 
     def test_refreshes_after_ten_distinct_unqualified_candidates(self):
         unqualified = [

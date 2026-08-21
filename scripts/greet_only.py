@@ -796,6 +796,7 @@ class CampaignRunner:
         target: int,
         max_scans: int,
         now: Callable[[], datetime],
+        require_major: bool = True,
         sleep: Callable[[float], None] = time.sleep,
         random_delay: Callable[[float, float], float] = random.uniform,
         monotonic: Callable[[], float] = time.monotonic,
@@ -816,6 +817,7 @@ class CampaignRunner:
         self.target = target
         self.max_scans = max_scans
         self.now = now
+        self.require_major = require_major
         self.sleep = sleep
         self.random_delay = random_delay
         self.monotonic = monotonic
@@ -890,6 +892,9 @@ class CampaignRunner:
                         {
                             "event": "job-selected",
                             "job": active_job,
+                            "majorFilterMode": (
+                                "required" if self.require_major else "skipped"
+                            ),
                             "message": (
                                 "使用指定岗位"
                                 if self.requested_job
@@ -942,7 +947,10 @@ class CampaignRunner:
                     continue
                 if name_counts[item.name] > 1:
                     continue
-                eligibility = self.policy.evaluate(item)
+                eligibility = self.policy.evaluate(
+                    item,
+                    require_major=self.require_major,
+                )
                 if not eligibility.eligible:
                     continue
                 at = self._now().isoformat()
@@ -1073,6 +1081,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--target", type=int, default=DEFAULT_TARGET)
     parser.add_argument("--max-scans", type=int, default=DEFAULT_MAX_SCANS)
     parser.add_argument(
+        "--skip-major-filter",
+        action="store_true",
+        default=False,
+        help="仅本次主动招呼忽略专业门槛；期望、年份、学历、学校和去重规则仍生效",
+    )
+    parser.add_argument(
         "--execute",
         action="store_true",
         help=argparse.SUPPRESS,
@@ -1131,6 +1145,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     "target": args.target,
                     "maxScans": args.max_scans,
                     "messageCount": len(messages),
+                    "majorFilterMode": (
+                        "required" if not args.skip_major_filter else "skipped"
+                    ),
                 },
                 ensure_ascii=False,
             )
@@ -1148,6 +1165,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         target=args.target,
         max_scans=args.max_scans,
         now=lambda: datetime.now(SHANGHAI),
+        require_major=not args.skip_major_filter,
     )
     lock_path = _state_root() / "greet-only.lock"
     try:
