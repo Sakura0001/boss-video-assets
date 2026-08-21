@@ -145,23 +145,30 @@ class SkillContractTest(unittest.TestCase):
                 self.assertIn(semantic, document)
 
     def test_one_run_major_filter_bypass_is_explicitly_scoped(self):
-        documents = (
-            self.skill,
-            self.reference_text["school_policy.yaml"],
-            self.reference_text["auto_greet.md"],
-            self.reference_text["greetings.md"],
-            self.reference_text["risk_policy.yaml"],
+        policy = self.reference_text["school_policy.yaml"]
+        greeting = self.reference_text["greetings.md"]
+        risk = self.reference_text["risk_policy.yaml"]
+
+        self.assertIn("major_skip_exception:", policy)
+        self.assertIn('flag: "--skip-major-filter"', policy)
+        self.assertIn("专业为空、缺失或无法识别", policy)
+        self.assertIn("不适用于未读聊天、已有会话回复、简历评估或后续运行", policy)
+        self.assertIn("不得绕过求职期望、2027 届、学历、学校和去重门槛", policy)
+
+        self.assertIn("references/school_policy.yaml", self.skill)
+        self.assertIn("references/auto_greet.md", self.skill)
+        self.assertIn("python3 scripts/greet_only.py", self.reference_text["auto_greet.md"])
+
+        self.assertIn("school_policy.yaml", greeting)
+        self.assertIn("auto_greet.md", greeting)
+        self.assertNotIn("--skip-major-filter", greeting)
+
+        self.assertIn(
+            "专业不符合或无法识别时默认阻断，仅本次主动打招呼显式携带 "
+            "--skip-major-filter 的已批准例外除外",
+            risk,
         )
-        required_semantics = (
-            "--skip-major-filter",
-            "专业为空、缺失或无法识别",
-            "仅适用于本次主动打招呼",
-            "不适用于未读聊天",
-            "不得绕过求职期望、2027 届、学历、学校和去重门槛",
-        )
-        for document in documents:
-            for semantic in required_semantics:
-                self.assertIn(semantic, document)
+        self.assertNotIn("仅当用户明确要求本次主动打招呼不限制专业", risk)
 
     def test_one_run_major_filter_bypass_runner_entry_is_explicit(self):
         proactive = self.reference_text["auto_greet.md"]
@@ -197,12 +204,34 @@ class SkillContractTest(unittest.TestCase):
             self.reference_text["boss_cli.md"],
         ):
             self.assertIn(current_default_job, document)
-        for document in (
+        self.assertIn(major_state, self.reference_text["school_policy.yaml"])
+
+    def test_greet_only_runner_and_manual_workflow_are_mutually_exclusive(self):
+        runner_ownership = (
+            "runner 内部完成计数、推荐、资格筛选、去重、打招呼、"
+            "精确会话/三条消息及状态记录。"
+        )
+        manual_exclusion = "启动 runner 后不得执行手工流程分支或另行调用 `boss greet`。"
+
+        self.assertIn("确定性执行器分支", self.skill)
+        self.assertIn("手工流程分支", self.skill)
+        self.assertIn(runner_ownership, self.skill)
+        self.assertIn(manual_exclusion, self.skill)
+        self.assertIn("仅在未启动 runner 时执行手工流程分支。", self.skill)
+
+        auto_greet = self.reference_text["auto_greet.md"]
+        self.assertIn("完整流程", auto_greet)
+        self.assertIn(runner_ownership, auto_greet)
+        self.assertIn(manual_exclusion, auto_greet)
+        self.assertIn("Runner 内部流程与手工参考", auto_greet)
+
+    def test_greet_only_startup_skips_unread_and_due_followups(self):
+        self.assertIn(
+            "greet-only 请求中，`boss list --unread` 仅用于验证登录，"
+            "不得处理未读聊天或到期跟进。",
             self.skill,
-            self.reference_text["school_policy.yaml"],
-            self.reference_text["auto_greet.md"],
-        ):
-            self.assertIn(major_state, document)
+        )
+        self.assertIn("完整自动招聘请求中，先处理未读聊天，再处理到期跟进", self.skill)
 
     def test_target_school_catalog_is_structured_and_expanded(self):
         catalog = self.reference_text["target_schools.md"]

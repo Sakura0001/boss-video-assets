@@ -45,6 +45,15 @@ policy:
   require_technical_experience: false
   unknown_profile_action: "no_reply"
   unmatched_profile_action: "no_reply"
+  major_skip_exception:
+    flag: "--skip-major-filter"
+    requires_explicit_current_proactive_request: true
+    applies_to: "仅适用于本次主动打招呼"
+    permits: "专业为空、缺失或无法识别"
+    excluded_flows: "不适用于未读聊天、已有会话回复、简历评估或后续运行"
+    required_gates: "不得绕过求职期望、2027 届、学历、学校和去重门槛"
+    persistence: "该开关及其配置不持久化；招呼、去重和候选人阶段仍按运行时规则记录。"
+    major_state: "可识别专业保留批准的规范名称；无法识别、为空或缺失的专业在本地运行状态中写入空字符串，不保存原始专业文本。"
 
 privacy:
   expose_filter_reason_to_candidate: false
@@ -58,5 +67,3 @@ rules:
   - "确定性自动化只允许直接命中 allowed_majors，或通过 major_aliases 映射到 allowed_majors；优先直接命中，多个近义词同时命中时取文本最长者。未列入映射、明显无关或无法判断时不回复，不得由脚本自由猜测。"
   - "不要求技术经历、编程经历或工作经历，可以从零培养。"
   - "学校、学历或毕业年份不符合或无法识别时不回复；专业不符合或无法识别时默认不回复。"
-  - "仅当用户明确要求本次主动打招呼不限制专业且执行器显式携带 --skip-major-filter 时，专业为空、缺失或无法识别也可继续；该例外仅适用于本次主动打招呼，不持久化，不适用于未读聊天、已有会话回复、简历评估或后续运行，也不得绕过求职期望、2027 届、学历、学校和去重门槛。"
-  - "在该例外下，可识别专业保留批准的规范名称；无法识别、为空或缺失的专业在本地运行状态中写入空字符串，不保存原始专业文本。"

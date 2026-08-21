@@ -19,7 +19,8 @@ Pause only for login, platform risk, an unknown business answer, an ambiguous ex
 2. Run the runtime helper `init` and `purge` commands from `automation_runtime.md`.
 3. Check the CLI with `boss help`, then use `boss list --unread` to verify login.
 4. If login is required, run `boss login`; after the user completes login, retry `boss list --unread` and continue automatically.
-5. Process unread chats first, then due follow-ups, then new recommendations until the daily greeting cap is reached.
+5. greet-only 请求中，`boss list --unread` 仅用于验证登录，不得处理未读聊天或到期跟进。
+6. 完整自动招聘请求中，先处理未读聊天，再处理到期跟进，最后处理新推荐直到每日招呼上限。
 
 Do not update the CLI automatically. A locally patched CLI may be in use; report version warnings without overwriting it.
 
@@ -38,11 +39,7 @@ Before replying to any inbound chat or greeting any recommendation, confirm ever
 - Major need not match the allowlist text exactly. Accept school-specific names when their meaning clearly indicates a computer-related major or closely matches one direction in `references/school_policy.yaml`; ambiguous or unrelated majors do not qualify.
 - In deterministic automation, resolve non-canonical major names only through `major_aliases` in `references/school_policy.yaml`. Do not invent mappings at runtime; add and validate an approved alias before automating it.
 
-No technical experience is required. Outside the approved one-run proactive-greeting exception below, if school, major, degree, or graduation year is missing, ambiguous, or ineligible, do not reply and do not explain the internal filter.
-
-仅当用户明确要求本次主动打招呼不限制专业且执行器显式携带 --skip-major-filter 时，专业为空、缺失或无法识别也可继续；该例外仅适用于本次主动打招呼，不持久化，不适用于未读聊天、已有会话回复、简历评估或后续运行，也不得绕过求职期望、2027 届、学历、学校和去重门槛。
-
-在该例外下，可识别专业保留批准的规范名称；无法识别、为空或缺失的专业在本地运行状态中写入空字符串，不保存原始专业文本。
+No technical experience is required. Detailed qualification, the one-run major exception, and its runtime-state privacy rules are canonical in `references/school_policy.yaml`; use `references/auto_greet.md` for the proactive run order. Outside that approved exception, if school, major, degree, or graduation year is missing, ambiguous, or ineligible, do not reply and do not explain the internal filter.
 
 ## Automatic Run Order
 
@@ -64,7 +61,17 @@ No technical experience is required. Outside the approved one-run proactive-gree
 
 ### New candidates
 
-1. For a deterministic one-run proactive greeting, use `scripts/greet_only.py`; `--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。未提供 --job 时使用 Boss 推荐页当前默认岗位，不把 `agent.yaml` 的 `default_job_keyword` 当作所选岗位，也不强制覆盖岗位。Then check `greeting-count`; stop at 150 greetings per day.
+Choose exactly one branch.
+
+#### A. 确定性执行器分支
+
+Use `scripts/greet_only.py` for the explicit one-run proactive greeting. `--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。未提供 --job 时使用 Boss 推荐页当前默认岗位，不把 `agent.yaml` 的 `default_job_keyword` 当作所选岗位，也不强制覆盖岗位。runner 内部完成计数、推荐、资格筛选、去重、打招呼、精确会话/三条消息及状态记录。该开关及其配置不持久化；招呼、去重和候选人阶段仍按运行时规则记录。启动 runner 后不得执行手工流程分支或另行调用 `boss greet`。
+
+#### B. 手工流程分支
+
+仅在未启动 runner 时执行手工流程分支。
+
+1. Check `greeting-count`; stop at 150 greetings per day.
 2. Run `boss recommend <岗位关键字>` and qualify distinct candidates in batches of ten.
 3. If a batch contains no qualified candidate, wait a random one to two seconds, run `boss recommend <岗位关键字> --refresh`, and continue until a qualified candidate is found or a configured safety stop is reached.
 4. Check the long-term dedupe index before greeting.

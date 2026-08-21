@@ -8,6 +8,8 @@
 
 **Tech Stack:** Python 3 标准库、`argparse`、`unittest`、Markdown/YAML skill 规则、SQLite、Boss CLI、Git。
 
+> **状态：** Tasks 1–5 已完成；Tasks 6–8 待执行。
+
 ## 文件与职责
 
 - `scripts/greet_only.py`：解析单次参数、执行资格判断、输出可审计模式并串行打招呼。
