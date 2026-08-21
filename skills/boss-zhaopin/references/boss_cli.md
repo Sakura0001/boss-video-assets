@@ -93,6 +93,22 @@ Notes:
 - `deep-search` depends on Boss UI routes and may fail if the platform changes.
 - After `boss greet`, immediately open the chat and send the required follow-up messages from `greetings.md`.
 
+## Deterministic Proactive Runner
+
+For the explicitly approved one-run major-filter exception, run this from the repository root on macOS / Linux:
+
+```bash
+python3 scripts/greet_only.py --skip-major-filter --target 150 --max-scans 1500
+```
+
+On Windows PowerShell, run:
+
+```powershell
+py -3 .\scripts\greet_only.py --skip-major-filter --target 150 --max-scans 1500
+```
+
+`--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。不带该参数时，执行器保持默认专业门槛。
+
 ## Reliability Practices
 
 - Avoid chaining many live sends in one shell command.

@@ -1,5 +1,21 @@
 # 自动打招呼
 
+## 单次确定性执行器入口
+
+仅本次主动打招呼需要放宽专业门槛时，从仓库根目录执行：
+
+```bash
+python3 scripts/greet_only.py --skip-major-filter --target 150 --max-scans 1500
+```
+
+Windows PowerShell 使用：
+
+```powershell
+py -3 .\scripts\greet_only.py --skip-major-filter --target 150 --max-scans 1500
+```
+
+`--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。不带该参数时，执行器继续使用默认专业门槛。
+
 1. 读取 `agent.yaml`、`school_policy.yaml`、`target_schools.md`、`greetings.md` 和 `automation_runtime.md`。
 2. 查询当日 `greeting-count`，达到 150 时停止。
 3. 使用 `boss recommend <岗位关键字>` 获取候选人。

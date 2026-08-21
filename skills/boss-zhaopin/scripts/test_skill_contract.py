@@ -163,6 +163,28 @@ class SkillContractTest(unittest.TestCase):
             for semantic in required_semantics:
                 self.assertIn(semantic, document)
 
+    def test_one_run_major_filter_bypass_runner_entry_is_explicit(self):
+        proactive = self.reference_text["auto_greet.md"]
+        cli = self.reference_text["boss_cli.md"]
+        macos_linux_entry = (
+            "python3 scripts/greet_only.py --skip-major-filter "
+            "--target 150 --max-scans 1500"
+        )
+        windows_entry = (
+            r"py -3 .\scripts\greet_only.py --skip-major-filter "
+            r"--target 150 --max-scans 1500"
+        )
+        flag_ownership = (
+            "`--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，"
+            "不得传给 `boss greet`。"
+        )
+        self.assertIn("scripts/greet_only.py", self.skill)
+        self.assertIn(flag_ownership, self.skill)
+        for document in (proactive, cli):
+            self.assertIn(macos_linux_entry, document)
+            self.assertIn(windows_entry, document)
+            self.assertIn(flag_ownership, document)
+
     def test_target_school_catalog_is_structured_and_expanded(self):
         catalog = self.reference_text["target_schools.md"]
         rows = re.findall(

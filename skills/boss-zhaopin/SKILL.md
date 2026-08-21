@@ -62,7 +62,7 @@ No technical experience is required. Outside the approved one-run proactive-gree
 
 ### New candidates
 
-1. Check `greeting-count`; stop at 150 greetings per day.
+1. For a deterministic one-run proactive greeting, use `scripts/greet_only.py`; `--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。Then check `greeting-count`; stop at 150 greetings per day.
 2. Run `boss recommend <岗位关键字>` and qualify distinct candidates in batches of ten.
 3. If a batch contains no qualified candidate, wait a random one to two seconds, run `boss recommend <岗位关键字> --refresh`, and continue until a qualified candidate is found or a configured safety stop is reached.
 4. Check the long-term dedupe index before greeting.

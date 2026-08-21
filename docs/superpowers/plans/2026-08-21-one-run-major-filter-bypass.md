@@ -575,6 +575,10 @@ Expected: 子代理明确选择 `scripts/greet_only.py --skip-major-filter --tar
 允许专业为空、缺失或无法识别；仍拦截期望九词并要求 2027 届、合格学历、目标学校
 和长期去重；明确该例外不持久化且不适用于未读聊天或后续运行。不得执行真实动作。
 
+> 2026-08-21 首次前向评估实际发现：更新后的规则已正确限定空专业仅可在本次主动打招呼例外中继续，并保留其余门槛；但权威文档没有给出完整的确定性执行器入口或 150 人单命令。评估者因此无法确定 `--skip-major-filter` 属于顶层 runner，并推断它可能传给 `boss greet`。该结果不构成最终 GREEN。
+>
+> 契约驱动修复：新增 source contract，要求 macOS/Linux 与 Windows 的完整 `scripts/greet_only.py` 入口，并锁定“该参数属于 runner、不得传给 `boss greet`”。随后在 `SKILL.md`、`auto_greet.md` 与 `boss_cli.md` 中补充入口说明。须由新的独立评估者重新执行本步骤后，才能记录最终行为 GREEN。
+
 - [ ] **Step 7: 从源 skill 同步仓库镜像**
 
 Run:
