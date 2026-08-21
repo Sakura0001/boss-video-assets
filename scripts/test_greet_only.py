@@ -212,6 +212,92 @@ class EligibilityPolicyTests(unittest.TestCase):
         self.assertEqual(result.major, "人工智能")
         self.assertEqual(result.degree, "博士")
 
+    def test_skip_major_filter_allows_unknown_empty_or_missing_current_major(self):
+        previous_zhejiang_education = EducationRecord(
+            "2020", "2024", "浙江大学", "计算机科学与技术", "本科"
+        )
+        cases = (
+            (
+                "unknown",
+                (
+                    previous_zhejiang_education,
+                    EducationRecord("2024", "2027", "某大学", "气象学", "博士"),
+                ),
+            ),
+            (
+                "empty",
+                (
+                    previous_zhejiang_education,
+                    EducationRecord("2024", "2027", "某大学", "", "博士"),
+                ),
+            ),
+            ("missing", (previous_zhejiang_education,)),
+        )
+        for label, education in cases:
+            with self.subTest(label=label):
+                result = self.policy.evaluate(
+                    candidate(education=education), require_major=False
+                )
+                self.assertTrue(result.eligible)
+                self.assertEqual(result.major, "")
+
+    def test_skip_major_filter_preserves_recognized_canonical_major(self):
+        result = self.policy.evaluate(
+            candidate(
+                base_info="27年应届生 / 硕士",
+                education=(
+                    EducationRecord(
+                        "2024", "2027", "浙江大学", "控制工程", "硕士"
+                    ),
+                ),
+            ),
+            require_major=False,
+        )
+        self.assertTrue(result.eligible)
+        self.assertEqual(result.major, "自动化")
+
+    def test_major_filter_is_required_by_default_for_unknown_and_empty_major(self):
+        cases = (
+            EducationRecord("2024", "2027", "浙江大学", "气象学", "博士"),
+            EducationRecord("2024", "2027", "浙江大学", "", "博士"),
+        )
+        for education in cases:
+            with self.subTest(major=education.major):
+                result = self.policy.evaluate(candidate(education=(education,)))
+                self.assertFalse(result.eligible)
+                self.assertEqual(result.reason, "major_unknown_or_ineligible")
+
+    def test_skip_major_filter_does_not_bypass_other_qualification_gates(self):
+        cases = (
+            (
+                "expectation_blocked",
+                candidate(expect="上海 数据工程师"),
+            ),
+            (
+                "graduation_year",
+                candidate(base_info="28年应届生 / 硕士"),
+            ),
+            (
+                "degree",
+                candidate(base_info="27年应届生 / 大专"),
+            ),
+            (
+                "school_unknown_or_ineligible",
+                candidate(
+                    education=(
+                        EducationRecord(
+                            "2024", "2027", "某大学", "人工智能", "博士"
+                        ),
+                    ),
+                ),
+            ),
+        )
+        for reason, item in cases:
+            with self.subTest(reason=reason):
+                result = self.policy.evaluate(item, require_major=False)
+                self.assertFalse(result.eligible)
+                self.assertEqual(result.reason, reason)
+
     def test_rejects_blocked_expectation_keywords(self):
         cases = (
             "上海 算法工程师",

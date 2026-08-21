@@ -378,7 +378,9 @@ class EligibilityPolicy:
         )
         return self._find_major(current_majors)
 
-    def evaluate(self, candidate: Candidate) -> EligibilityResult:
+    def evaluate(
+        self, candidate: Candidate, *, require_major: bool = True
+    ) -> EligibilityResult:
         normalized_expectation = _normalize(candidate.expect)
         if any(
             _normalize(keyword) in normalized_expectation
@@ -397,7 +399,7 @@ class EligibilityPolicy:
         major = self._find_current_major(
             candidate.education, degree_match.group(1)
         )
-        if not major:
+        if not major and require_major:
             return EligibilityResult(False, "major_unknown_or_ineligible")
         return EligibilityResult(
             True,
