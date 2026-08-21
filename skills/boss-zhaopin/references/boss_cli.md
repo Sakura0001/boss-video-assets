@@ -107,7 +107,7 @@ On Windows PowerShell, run:
 py -3 .\scripts\greet_only.py --skip-major-filter --target 150 --max-scans 1500
 ```
 
-`--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。不带该参数时，执行器保持默认专业门槛。
+`--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。未提供 --job 时使用 Boss 推荐页当前默认岗位，不把 `agent.yaml` 的 `default_job_keyword` 当作所选岗位，也不强制覆盖岗位。不带该参数时，执行器保持默认专业门槛。
 
 ## Reliability Practices
 

@@ -185,6 +185,25 @@ class SkillContractTest(unittest.TestCase):
             self.assertIn(windows_entry, document)
             self.assertIn(flag_ownership, document)
 
+    def test_one_run_major_filter_bypass_preserves_job_and_major_state_rules(self):
+        current_default_job = "未提供 --job 时使用 Boss 推荐页当前默认岗位"
+        major_state = (
+            "可识别专业保留批准的规范名称；无法识别、为空或缺失的专业"
+            "在本地运行状态中写入空字符串，不保存原始专业文本。"
+        )
+        for document in (
+            self.skill,
+            self.reference_text["auto_greet.md"],
+            self.reference_text["boss_cli.md"],
+        ):
+            self.assertIn(current_default_job, document)
+        for document in (
+            self.skill,
+            self.reference_text["school_policy.yaml"],
+            self.reference_text["auto_greet.md"],
+        ):
+            self.assertIn(major_state, document)
+
     def test_target_school_catalog_is_structured_and_expanded(self):
         catalog = self.reference_text["target_schools.md"]
         rows = re.findall(

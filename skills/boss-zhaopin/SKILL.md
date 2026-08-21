@@ -42,6 +42,8 @@ No technical experience is required. Outside the approved one-run proactive-gree
 
 仅当用户明确要求本次主动打招呼不限制专业且执行器显式携带 --skip-major-filter 时，专业为空、缺失或无法识别也可继续；该例外仅适用于本次主动打招呼，不持久化，不适用于未读聊天、已有会话回复、简历评估或后续运行，也不得绕过求职期望、2027 届、学历、学校和去重门槛。
 
+在该例外下，可识别专业保留批准的规范名称；无法识别、为空或缺失的专业在本地运行状态中写入空字符串，不保存原始专业文本。
+
 ## Automatic Run Order
 
 ### Unread chats
@@ -62,7 +64,7 @@ No technical experience is required. Outside the approved one-run proactive-gree
 
 ### New candidates
 
-1. For a deterministic one-run proactive greeting, use `scripts/greet_only.py`; `--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。Then check `greeting-count`; stop at 150 greetings per day.
+1. For a deterministic one-run proactive greeting, use `scripts/greet_only.py`; `--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。未提供 --job 时使用 Boss 推荐页当前默认岗位，不把 `agent.yaml` 的 `default_job_keyword` 当作所选岗位，也不强制覆盖岗位。Then check `greeting-count`; stop at 150 greetings per day.
 2. Run `boss recommend <岗位关键字>` and qualify distinct candidates in batches of ten.
 3. If a batch contains no qualified candidate, wait a random one to two seconds, run `boss recommend <岗位关键字> --refresh`, and continue until a qualified candidate is found or a configured safety stop is reached.
 4. Check the long-term dedupe index before greeting.
