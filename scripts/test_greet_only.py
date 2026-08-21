@@ -14,10 +14,12 @@ from scripts.greet_only import (
     CampaignRunner,
     Candidate,
     EducationRecord,
+    EligibilityResult,
     EligibilityPolicy,
     GreetNotConfirmedError,
     GreetingKnowledgeBaseError,
     RecommendationBatch,
+    RuntimeStoreCli,
     build_parser,
     load_greeting_messages,
     main,
@@ -91,10 +93,12 @@ class FakeStore:
     def record_greeted(self, candidate, eligibility, job, at):
         self.count += 1
         self.deduped.add(candidate.geek_id)
-        self.events.append((candidate.geek_id, job, at))
+        self.events.append((candidate.geek_id, job, at, eligibility.major))
 
     def mark_waiting_resume(self, candidate, eligibility, at):
-        self.states.append((candidate.geek_id, "waiting_resume", at))
+        self.states.append(
+            (candidate.geek_id, "waiting_resume", at, eligibility.major)
+        )
 
 
 def candidate(
@@ -884,6 +888,58 @@ class BossCliTests(unittest.TestCase):
                 self.assertEqual(payload["majorFilterMode"], expected_mode)
 
 
+class RuntimeStoreCliTests(unittest.TestCase):
+    class CapturingRuntimeStoreCli(RuntimeStoreCli):
+        def __init__(self):
+            super().__init__(Path("runtime_store.py"))
+            self.calls = []
+
+        def _run_json(self, arguments):
+            self.calls.append(list(arguments))
+            return {}
+
+    def test_persists_only_canonical_eligibility_major(self):
+        item = candidate(
+            geek_id="raw-unknown-major",
+            name="未知专业候选人",
+            education=(
+                EducationRecord("2024", "2027", "浙江大学", "气象学", "博士"),
+            ),
+        )
+
+        for persisted_major in ("", "人工智能"):
+            with self.subTest(persisted_major=persisted_major):
+                store = self.CapturingRuntimeStoreCli()
+                eligibility = EligibilityResult(
+                    eligible=True,
+                    reason="eligible",
+                    school="浙江大学",
+                    major=persisted_major,
+                    degree="博士",
+                    grad_year=2027,
+                )
+                store.record_greeted(
+                    item,
+                    eligibility,
+                    "ai应用研发工程师",
+                    "2026-07-23T10:00:00+08:00",
+                )
+                store.mark_waiting_resume(
+                    item,
+                    eligibility,
+                    "2026-07-23T10:00:01+08:00",
+                )
+
+                major_values = [
+                    call[call.index("--major") + 1] for call in store.calls
+                ]
+                self.assertEqual(major_values, [persisted_major, persisted_major])
+                self.assertNotIn(
+                    "气象学",
+                    [argument for call in store.calls for argument in call],
+                )
+
+
 class CampaignRunnerTests(unittest.TestCase):
     def setUp(self):
         self.policy = EligibilityPolicy(
@@ -950,10 +1006,38 @@ class CampaignRunnerTests(unittest.TestCase):
         events = [json.loads(line) for line in output.getvalue().splitlines()]
         self.assertEqual([item[0] for item in boss.greeted], ["fresh-empty"])
         self.assertEqual(result.final_count, 1)
+        self.assertEqual(store.events[0][3], "")
+        self.assertEqual(store.states[0][3], "")
         job_selected = next(
             event for event in events if event["event"] == "job-selected"
         )
         self.assertEqual(job_selected["majorFilterMode"], "skipped")
+
+    def test_skip_major_filter_persists_canonical_major_for_alias(self):
+        self.policy = replace(
+            self.policy,
+            major_aliases={"控制工程": "人工智能"},
+        )
+        aliased = candidate(
+            geek_id="aliased-major",
+            name="别名专业候选人",
+            education=(
+                EducationRecord("2024", "2027", "浙江大学", "控制工程", "博士"),
+            ),
+        )
+        boss = FakeBoss([[aliased]])
+        store = FakeStore()
+
+        result = self.runner(
+            boss,
+            store,
+            target=1,
+            require_major=False,
+        ).run()
+
+        self.assertEqual(result.final_count, 1)
+        self.assertEqual(store.events[0][3], "人工智能")
+        self.assertEqual(store.states[0][3], "人工智能")
 
     def test_refreshes_after_ten_distinct_unqualified_candidates(self):
         unqualified = [
