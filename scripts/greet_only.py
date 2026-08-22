@@ -26,9 +26,8 @@ DEFAULT_RECOMMEND_RETRY_DELAY_SECONDS = 2.0
 MIN_CANDIDATE_DELAY_SECONDS = 1.0
 MAX_CANDIDATE_DELAY_SECONDS = 2.0
 REQUIRED_MESSAGE_HEADINGS = (
-    "真人化说明",
-    "一条合并岗位介绍",
-    "索要附件简历",
+    "技术与岗位介绍",
+    "匹配与转投提示",
 )
 BLOCKED_EXPECTATION_KEYWORDS = (
     "算法",
@@ -177,7 +176,7 @@ def _extract_inline_code_after_heading(markdown: str, heading: str) -> str:
     return message
 
 
-def load_greeting_messages(path: Path) -> Tuple[str, str, str]:
+def load_greeting_messages(path: Path) -> Tuple[str, str]:
     try:
         markdown = path.read_text(encoding="utf-8")
     except OSError as exc:
@@ -186,8 +185,8 @@ def load_greeting_messages(path: Path) -> Tuple[str, str, str]:
         _extract_inline_code_after_heading(markdown, heading)
         for heading in REQUIRED_MESSAGE_HEADINGS
     )
-    if len(messages) != 3:
-        raise GreetingKnowledgeBaseError("知识库必须提供三条主动招呼消息")
+    if len(messages) != 2:
+        raise GreetingKnowledgeBaseError("知识库必须提供两条主动招呼消息")
     return messages  # type: ignore[return-value]
 
 
@@ -666,7 +665,7 @@ class BossCli:
         self,
         candidate: Candidate,
         job: str,
-        messages: Tuple[str, str, str],
+        messages: Tuple[str, str],
     ) -> None:
         chat_job = self._chat_job_name(job)
         raw = self._run(
@@ -690,8 +689,8 @@ class BossCli:
             raise CampaignError("消息序列结果候选人姓名不匹配")
         if chat_job not in str(payload.get("job") or ""):
             raise CampaignError("消息序列结果岗位不匹配")
-        if payload.get("messagesVerified") != 3:
-            raise CampaignError("三条知识库消息未全部验证")
+        if payload.get("messagesVerified") != 2:
+            raise CampaignError("两条知识库消息未全部验证")
 
 
 class RuntimeStoreCli:
@@ -764,10 +763,12 @@ class RuntimeStoreCli:
                 eligibility.degree,
                 "--grad-year",
                 str(eligibility.grad_year or 2027),
+                "--manual-takeover",
+                "true",
             ]
         )
 
-    def mark_waiting_resume(
+    def mark_waiting_application_status(
         self,
         candidate: Candidate,
         eligibility: EligibilityResult,
@@ -781,7 +782,7 @@ class RuntimeStoreCli:
                 "--display-name",
                 candidate.name,
                 "--stage",
-                "waiting_resume",
+                "waiting_application_status",
                 "--now",
                 at,
                 "--school",
@@ -794,6 +795,8 @@ class RuntimeStoreCli:
                 "2027",
                 "--last-contact-at",
                 at,
+                "--manual-takeover",
+                "false",
             ]
         )
 
@@ -805,7 +808,7 @@ class CampaignRunner:
         boss,
         store,
         policy: EligibilityPolicy,
-        messages: Tuple[str, str, str],
+        messages: Tuple[str, str],
         job: Optional[str],
         target: int,
         max_scans: int,
@@ -821,8 +824,8 @@ class CampaignRunner:
             raise CampaignError(
                 f"检查候选人上限必须在 1 到 {MAX_SCAN_LIMIT} 之间"
             )
-        if len(messages) != 3:
-            raise GreetingKnowledgeBaseError("必须从知识库读取到三条消息")
+        if len(messages) != 2:
+            raise GreetingKnowledgeBaseError("必须从知识库读取到两条消息")
         self.boss = boss
         self.store = store
         self.policy = policy
@@ -1014,7 +1017,7 @@ class CampaignRunner:
                 action_time,
             )
             self._send_messages(eligible_candidate, active_job)
-            self.store.mark_waiting_resume(
+            self.store.mark_waiting_application_status(
                 eligible_candidate,
                 eligibility,
                 self._now().isoformat(),
@@ -1106,7 +1109,7 @@ def _repository_root() -> Path:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "一键登录 Boss，使用当前默认岗位执行主动打招呼和知识库三条消息"
+            "一键登录 Boss，使用当前默认岗位执行主动打招呼和知识库两条消息"
         )
     )
     parser.add_argument(

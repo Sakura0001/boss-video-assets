@@ -29,9 +29,20 @@ class SkillContractTest(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertTrue(match.group(1).strip('"').startswith("Use when"))
 
-    def test_proactive_greeting_has_three_machine_readable_sections(self):
+    def test_proactive_greeting_has_two_exact_machine_readable_sections(self):
         greetings = self.reference_text["greetings.md"]
-        for heading in ("真人化说明", "一条合并岗位介绍", "索要附件简历"):
+        expected = (
+            (
+                "技术与岗位介绍",
+                "我们团队正在探索AI时代的下一代智能应用，围绕大语言模型（LLM）、AI Agent、RAG、知识增强、智能工作流和多Agent协同，打造能理解任务、主动分析并自动执行的企业级应用。目前已覆盖智能助手、自动化决策、智能分析、企业知识管理和AIOps等场景，加入后可参与从模型应用设计、Agent架构搭建到生产落地的完整流程，积累AI时代的核心技术能力。",
+            ),
+            (
+                "匹配与转投提示",
+                "我看了一下你的背景和在线简历，和我们AI应用研发方向有一定匹配度。欢迎你了解一下我们的技术方向和发展机会。我们这边相对wlb一些，自盈利部门，年终奖可以保证，日常加班可以随意申报，也不会强制要求来。部门整体氛围好，新老员工无断层现象，跳槽到外面的员工都有很大幅度的涨薪，不需要担心个人竞争力。如果你现在已投递的话，也开始对比下现在投递的部门，看是否想转投，现在还可以转，后面正式进流程就没办法在转投了",
+            ),
+        )
+        actual = []
+        for heading, message in expected:
             section = re.search(
                 rf"^###\s+{re.escape(heading)}\s*$"
                 rf"(?P<body>.*?)(?=^###\s+|\Z)",
@@ -41,7 +52,66 @@ class SkillContractTest(unittest.TestCase):
             self.assertIsNotNone(section)
             snippets = re.findall(r"`([^`\r\n]+)`", section.group("body"))
             self.assertEqual(len(snippets), 1)
-            self.assertTrue(snippets[0].strip())
+            actual.append((heading, snippets[0].strip()))
+        self.assertEqual(actual, list(expected))
+        self.assertNotIn("### 索要附件简历", greetings)
+
+    def test_proactive_greeting_skips_attachment_request_and_waits_for_application_status(self):
+        greetings = self.reference_text["greetings.md"]
+        proactive = self.reference_text["auto_greet.md"]
+        conversion = self.reference_text["candidate_conversion.md"]
+        combined = "\n".join((greetings, proactive))
+
+        self.assertIn("主动招呼流程不执行附件简历请求", combined)
+        self.assertIn("不使用 `--request-resume`", combined)
+        self.assertIn("不执行 `request-attachment-resume`", combined)
+        self.assertIn("状态设为 `waiting_application_status`", proactive)
+        self.assertIn("greeted → waiting_application_status", conversion)
+
+    def test_transfer_intro_preserves_structured_eligibility_decision(self):
+        greetings = self.reference_text["greetings.md"]
+        conversion = self.reference_text["candidate_conversion.md"]
+        risk = self.reference_text["risk_policy.yaml"]
+
+        self.assertIn("仅作主动介绍，不构成转投资格判断", greetings)
+        for document in (greetings, conversion, risk):
+            self.assertIn("evaluate-transfer", document)
+            self.assertIn("exchange_wechat", document)
+
+    def test_application_status_followups_are_stage_specific(self):
+        followups = self.reference_text["followups.md"]
+        self.assertIn(
+            "waiting_application_status` 只使用两条投递状态追问，"
+            "不得选用历史通用跟进",
+            self.skill,
+        )
+        self.assertIn("waiting_application_status", followups)
+        self.assertIn("followup_count = 0", followups)
+        self.assertIn("同学你投的哪个部门呀？简历编号有给过别人吗？", followups)
+        self.assertIn("followup_count = 1", followups)
+        self.assertIn("同学你还没说投没投递过呢，简历编号有给过别人嘛？", followups)
+        self.assertIn("followup_count = 2", followups)
+        self.assertIn("stopped/application_status_unanswered", followups)
+        self.assertIn(
+            "只执行终止落库，不发送消息，也不调用 `followup-sent`",
+            followups,
+        )
+
+    def test_online_resume_wording_does_not_enable_preview(self):
+        proactive = self.reference_text["auto_greet.md"]
+        self.assertIn("推荐页当前可见的候选人资料", proactive)
+        self.assertIn("不调用 `boss preview`", proactive)
+
+    def test_partial_greeting_sequence_requires_manual_recovery(self):
+        proactive = self.reference_text["auto_greet.md"]
+        runtime = self.reference_text["automation_runtime.md"]
+        followups = self.reference_text["followups.md"]
+
+        for document in (proactive, runtime):
+            self.assertIn("manual_takeover = 1", document)
+            self.assertIn("manual_takeover = 0", document)
+        self.assertIn("人工打开精确会话核对并恢复", proactive)
+        self.assertIn("不得进入历史通用跟进", followups)
 
     def test_resume_and_application_status_copy_is_exact(self):
         self.assertIn("收到同学，我先看下你的简历，稍等一下。", self.all_text)
@@ -122,7 +192,7 @@ class SkillContractTest(unittest.TestCase):
             "子串匹配",
             "expectation_blocked",
             "不打招呼",
-            "不发送后续三条",
+            "不发送后续两条",
             "完整求职期望不得写入本地状态或 Git",
             "为空或未命中时，继续毕业年份、学历、学校、专业和去重门槛",
         )
@@ -209,7 +279,7 @@ class SkillContractTest(unittest.TestCase):
     def test_greet_only_runner_and_manual_workflow_are_mutually_exclusive(self):
         runner_ownership = (
             "runner 内部完成计数、推荐、资格筛选、去重、打招呼、"
-            "精确会话/三条消息及状态记录。"
+            "精确会话/两条消息及状态记录。"
         )
         manual_exclusion = "启动 runner 后不得执行手工流程分支或另行调用 `boss greet`。"
 

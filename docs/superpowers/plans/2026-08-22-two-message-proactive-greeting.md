@@ -37,7 +37,9 @@
 - `tools/boss-cli/test/send-sequence.test.mjs`：两消息序列约束测试。
 - `tools/boss-cli/src/toolset/send.ts`：恰好两条消息的运行时校验。
 - `tools/boss-cli/src/cli/cliRouter.ts`、`tools/boss-cli/README.md`、`tools/boss-cli/docs/boss-url-map.md`：两消息命令说明。
+- `tools/boss-cli/dist/`：由 TypeScript 构建生成并供仓库安装及当前 PATH 中的 `boss` 直接执行。
 - `/Users/yuyu/.codex/skills/boss-zhaopin/scripts/test_skill_contract.py`：源 skill 的失败优先契约测试。
+- `/Users/yuyu/.codex/skills/boss-zhaopin/scripts/runtime_store.py`：新状态的终止到期项与部分消息失败的自动跟进抑制。
 - `/Users/yuyu/.codex/skills/boss-zhaopin/SKILL.md` 与相关 `references/`：唯一业务来源。
 - `skills/boss-zhaopin/`：由同步脚本生成的仓库镜像。
 - `README.md`、`docs/windows-setup.md`：当前用户运行说明。
@@ -121,7 +123,7 @@ Change `load_greeting_messages`, `BossCli.send_sequence`, and `CampaignRunner.me
 
 - [ ] **Step 2: Change the post-send state**
 
-Rename `RuntimeStoreCli.mark_waiting_resume` to `mark_waiting_application_status`, pass `--stage waiting_application_status`, and invoke it only after both messages have been read back successfully.
+Rename `RuntimeStoreCli.mark_waiting_resume` to `mark_waiting_application_status`, pass `--stage waiting_application_status`, and invoke it only after both messages have been read back successfully. `greeting-complete` must atomically set `manual_takeover = 1` for this runner so an interrupted sequence cannot enter historical follow-ups; the successful state update clears it to `0`.
 
 - [ ] **Step 3: Run focused GREEN tests**
 
@@ -144,6 +146,8 @@ Expected: all listed Python logic tests pass. The repository knowledge-base cont
 
 - Modify: `tools/boss-cli/src/toolset/send.ts`
 - Modify: `tools/boss-cli/src/cli/cliRouter.ts`
+- Generate: `tools/boss-cli/dist/toolset/send.*`
+- Generate: `tools/boss-cli/dist/cli/cliRouter.js`
 - Modify: `tools/boss-cli/test/send-sequence.test.mjs`
 - Modify: `tools/boss-cli/README.md`
 - Modify: `tools/boss-cli/docs/boss-url-map.md`
@@ -178,7 +182,7 @@ Run:
 cd tools/boss-cli && npm test
 ```
 
-Expected: TypeScript build succeeds and all configured Node tests pass.
+Expected: TypeScript build succeeds, generated `dist` retains the two-message contract, and all configured Node tests pass. Do not restore the old tracked `dist` files after building because the repository-installed `boss` command executes them directly.
 
 ### Task 4: Update the authoritative source skill and synchronize it
 
@@ -198,6 +202,7 @@ Expected: TypeScript build succeeds and all configured Node tests pass.
 - Modify: `/Users/yuyu/.codex/skills/boss-zhaopin/references/followups.md`
 - Modify: `/Users/yuyu/.codex/skills/boss-zhaopin/scripts/test_skill_contract.py`
 - Modify: `/Users/yuyu/.codex/skills/boss-zhaopin/scripts/test_runtime_store.py`
+- Modify: `/Users/yuyu/.codex/skills/boss-zhaopin/scripts/runtime_store.py`
 - Generate: `skills/boss-zhaopin/`
 
 - [ ] **Step 1: Replace the source greeting knowledge base**
@@ -220,6 +225,8 @@ greeted or waiting_resume -> retain the existing general follow-up branch for hi
 The new fixed second message is an opportunity introduction, not a counted application-status follow-up. Also state that “现在还可以转” is not an eligibility decision: every reply still requires `application_target`, `psych_status`, `interview_status`, and `written_status`, followed by `evaluate-transfer`; only `exchange_wechat` permits the WeChat action.
 
 Add a runtime-store regression case showing `waiting_application_status` is eligible for due follow-up and stops after its existing two-question limit. Keep the historical `waiting_resume` cases intact.
+
+Expose `followup_count = 2` as a due terminal item only after another six-hour no-reply interval; it must be stopped without sending or calling `followup-sent`. For the proactive runner, hold the transitional `greeted` row with `manual_takeover = 1` and clear it only after both fixed messages verify, so partial sequences require manual exact-chat recovery and never enter the historical resume-request branch.
 
 - [ ] **Step 3: Run source validation**
 
@@ -316,6 +323,9 @@ git add -- \
   docs/superpowers/plans/2026-08-22-two-message-proactive-greeting.md \
   scripts/greet_only.py scripts/test_greet_only.py \
   tools/boss-cli/src/toolset/send.ts tools/boss-cli/src/cli/cliRouter.ts \
+  tools/boss-cli/dist/cli/cliRouter.js tools/boss-cli/dist/toolset/send.d.ts \
+  tools/boss-cli/dist/toolset/send.d.ts.map tools/boss-cli/dist/toolset/send.js \
+  tools/boss-cli/dist/toolset/send.js.map \
   tools/boss-cli/test/send-sequence.test.mjs tools/boss-cli/README.md \
   tools/boss-cli/docs/boss-url-map.md skills/boss-zhaopin
 git commit -m "feat: send two proactive greeting messages"

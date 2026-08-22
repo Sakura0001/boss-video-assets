@@ -10,13 +10,15 @@
 
 ## 主状态
 
-`eligible → greeted → waiting_resume → resume_received → waiting_application_status → handoff_eligible → wechat_exchange_completed`
+`eligible → greeted → waiting_application_status → handoff_eligible → wechat_exchange_completed`
+
+新的主动打招呼在两条固定纯文本均读回验证成功后，从 `greeted` 进入 `waiting_application_status`。`waiting_resume` 仅兼容历史记录和候选人主动提交附件简历的独立流程，不是新主动路径的必经阶段。
 
 人工发送新消息时转为 `manual_takeover`。拒绝、无资格、达到跟进上限或命中流程终止条件时转为 `stopped`。
 
-## 简历处理
+## 候选人主动提交附件简历
 
-候选人发起附件简历请求后：
+主动打招呼不索要附件简历。候选人主动发来附件简历或发起附件简历请求后，才进入本独立流程：
 
 1. 发送：`收到同学，我先看下你的简历，稍等一下。`
 2. 执行 `boss action agree-resume`。
@@ -27,6 +29,8 @@
 附件未获取成功时，不声称已看简历，不进入投递状态判断。
 
 ## 投递状态追问
+
+固定第二条中“现在还可以转”仅作主动介绍，不构成转投资格判断。候选人对投递或转投作出任何回复后，仍须提取 `application_target`、`psych_status`、`interview_status` 和 `written_status`，运行 `evaluate-transfer`；只有结果为 `exchange_wechat` 才可交换微信。
 
 候选人表示还没准备好、正在准备材料或类似犹豫时，回复：
 

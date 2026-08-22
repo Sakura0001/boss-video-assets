@@ -5,8 +5,8 @@ import { runRequestAttachmentResume } from './action.js';
 import { runOpenCandidateChat } from './chat.js';
 const SEQUENCE_MESSAGE_GAP_MS = { min: 1_000, max: 2_000 };
 export function validateMessageSequence(messages) {
-    if (messages.length !== 3) {
-        throw new Error(`消息序列必须恰好三条，当前为 ${messages.length} 条。`);
+    if (messages.length !== 2) {
+        throw new Error(`消息序列必须恰好两条，当前为 ${messages.length} 条。`);
     }
     const normalized = messages.map((message) => message.trim());
     if (normalized.some((message) => !message)) {

@@ -41,6 +41,7 @@ class FakeBoss:
         self.sequence_calls = []
         self.sent = []
         self.fail_send_at = None
+        self.sequence_error = None
         self.unconfirmed_greet_ids = set()
 
     def recommend(self, job, refresh):
@@ -75,6 +76,8 @@ class FakeBoss:
 
     def send_sequence(self, candidate, job, messages):
         self.sequence_calls.append((candidate.geek_id, candidate.name, job, messages))
+        if self.sequence_error is not None:
+            raise self.sequence_error
         for message in messages:
             self.send(message)
 
@@ -97,9 +100,9 @@ class FakeStore:
         self.deduped.add(candidate.geek_id)
         self.events.append((candidate.geek_id, job, at, eligibility.major))
 
-    def mark_waiting_resume(self, candidate, eligibility, at):
+    def mark_waiting_application_status(self, candidate, eligibility, at):
         self.states.append(
-            (candidate.geek_id, "waiting_resume", at, eligibility.major)
+            (candidate.geek_id, "waiting_application_status", at, eligibility.major)
         )
 
 
@@ -157,9 +160,8 @@ class GreetingKnowledgeBaseTests(unittest.TestCase):
             / "greetings.md"
         )
         expected = (
-            "我们团队正在探索AI时代下一代智能应用形态，围绕大语言模型（LLM）、AI Agent、RAG、知识增强、智能工作流、多Agent协同等技术方向，打造能够理解任务、主动分析、自动执行的企业级智能应用，让AI真正进入实际业务场景。",
-            "目前AI Agent方向处于快速发展阶段，团队持续投入前沿技术探索和产品落地，覆盖智能助手、自动化决策、智能分析、企业知识管理、AIOps等多个场景。加入团队后可以深入参与从模型应用设计、Agent架构搭建到生产系统落地的完整流程，积累AI时代核心技术能力。",
-            "我看了一下你的背景，和我们AI应用研发方向有一定匹配度。如果方便的话，辛苦发我一份附件简历，我可以进一步帮你评估岗位匹配情况，也欢迎你了解一下我们的技术方向和发展机会。我们这边相对wlb一些，自盈利部门，年终奖可以保证，日常加班可以随意申报，也不会强制要求来。部门整体氛围好，新老员工无断层现象，跳槽到外面的员工都有很大幅度的涨薪，不需要担心个人竞争力。",
+            "我们团队正在探索AI时代的下一代智能应用，围绕大语言模型（LLM）、AI Agent、RAG、知识增强、智能工作流和多Agent协同，打造能理解任务、主动分析并自动执行的企业级应用。目前已覆盖智能助手、自动化决策、智能分析、企业知识管理和AIOps等场景，加入后可参与从模型应用设计、Agent架构搭建到生产落地的完整流程，积累AI时代的核心技术能力。",
+            "我看了一下你的背景和在线简历，和我们AI应用研发方向有一定匹配度。欢迎你了解一下我们的技术方向和发展机会。我们这边相对wlb一些，自盈利部门，年终奖可以保证，日常加班可以随意申报，也不会强制要求来。部门整体氛围好，新老员工无断层现象，跳槽到外面的员工都有很大幅度的涨薪，不需要担心个人竞争力。如果你现在已投递的话，也开始对比下现在投递的部门，看是否想转投，现在还可以转，后面正式进流程就没办法在转投了",
         )
 
         messages = load_greeting_messages(path)
@@ -170,30 +172,26 @@ class GreetingKnowledgeBaseTests(unittest.TestCase):
     def test_loads_exact_messages_in_required_order(self):
         content = """# 主动打招呼话术
 
-### 真人化说明
+### 技术与岗位介绍
 
 `第一条原文`
 
-### 一条合并岗位介绍
+### 匹配与转投提示
 
 `第二条原文`
-
-### 索要附件简历
-
-`第三条原文`
 """
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "greetings.md"
             path.write_text(content, encoding="utf-8")
             self.assertEqual(
                 load_greeting_messages(path),
-                ("第一条原文", "第二条原文", "第三条原文"),
+                ("第一条原文", "第二条原文"),
             )
 
     def test_missing_message_fails_instead_of_generating_text(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "greetings.md"
-            path.write_text("### 真人化说明\n\n`只有一条`\n", encoding="utf-8")
+            path.write_text("### 技术与岗位介绍\n\n`只有一条`\n", encoding="utf-8")
             with self.assertRaises(GreetingKnowledgeBaseError):
                 load_greeting_messages(path)
 
@@ -713,7 +711,7 @@ class BossCliTests(unittest.TestCase):
             [
                 '{"job":"ai应用研发工程师","candidates":[]}',
                 '{"job":"ai应用研发工程师","name":"候选人","geekId":"stable-id"}',
-                '{"job":"ai应用研发工程师","name":"候选人","messagesVerified":3}',
+                '{"job":"ai应用研发工程师","name":"候选人","messagesVerified":2}',
             ]
         )
 
@@ -722,7 +720,7 @@ class BossCliTests(unittest.TestCase):
         cli.send_sequence(
             item,
             "ai应用研发工程师",
-            ("知识库一", "知识库二", "知识库三"),
+            ("知识库一", "知识库二"),
         )
 
         self.assertEqual(cli.calls[0][-2:], ["--json", "--automation"])
@@ -730,6 +728,8 @@ class BossCliTests(unittest.TestCase):
         self.assertNotIn("--job", cli.calls[1])
         self.assertEqual(cli.calls[2][0], "send-sequence")
         self.assertEqual(cli.calls[2].count("send-sequence"), 1)
+        self.assertNotIn("--request-resume", cli.calls[2])
+        self.assertNotIn("request-attachment-resume", cli.calls[2])
 
     def test_recommend_without_job_uses_current_default_job(self):
         cli = self.CapturingBossCli(
@@ -777,18 +777,37 @@ class BossCliTests(unittest.TestCase):
         cli = self.CapturingBossCli(
             [
                 '{"job":"ai应用研发工程师","name":"候选人",'
-                '"messagesVerified":3}'
+                '"messagesVerified":2}'
             ]
         )
 
         cli.send_sequence(
             item,
             "ai应用研发工程师 _ 上海 25-30K",
-            ("知识库一", "知识库二", "知识库三"),
+            ("知识库一", "知识库二"),
         )
 
         job_index = cli.calls[0].index("--job")
         self.assertEqual(cli.calls[0][job_index + 1], "ai应用研发工程师")
+
+    def test_send_sequence_rejects_invalid_json(self):
+        item = candidate(geek_id="stable-id", name="候选人")
+        cli = self.CapturingBossCli(["not-json"])
+
+        with self.assertRaisesRegex(CampaignError, "无效 JSON"):
+            cli.send_sequence(item, "ai应用研发工程师", ("知识库一", "知识库二"))
+
+    def test_send_sequence_rejects_incomplete_verification(self):
+        item = candidate(geek_id="stable-id", name="候选人")
+        cli = self.CapturingBossCli(
+            [
+                '{"job":"ai应用研发工程师","name":"候选人",'
+                '"messagesVerified":1}'
+            ]
+        )
+
+        with self.assertRaisesRegex(CampaignError, "两条知识库消息未全部验证"):
+            cli.send_sequence(item, "ai应用研发工程师", ("知识库一", "知识库二"))
 
     def test_login_is_skipped_when_session_is_ready(self):
         cli = self.CapturingBossCli(
@@ -899,6 +918,7 @@ class BossCliTests(unittest.TestCase):
                 self.assertEqual(result, 0)
                 payload = json.loads(output.getvalue())
                 self.assertEqual(payload["majorFilterMode"], expected_mode)
+                self.assertEqual(payload["messageCount"], 2)
 
     def test_validate_only_skips_live_preflight(self):
         with patch("scripts.greet_only.BossCli") as boss_class, patch(
@@ -964,7 +984,7 @@ class RuntimeStoreCliTests(unittest.TestCase):
                     "ai应用研发工程师",
                     "2026-07-23T10:00:00+08:00",
                 )
-                store.mark_waiting_resume(
+                store.mark_waiting_application_status(
                     item,
                     eligibility,
                     "2026-07-23T10:00:01+08:00",
@@ -974,6 +994,21 @@ class RuntimeStoreCliTests(unittest.TestCase):
                     call[call.index("--major") + 1] for call in store.calls
                 ]
                 self.assertEqual(major_values, [persisted_major, persisted_major])
+                greeting_call = store.calls[0]
+                self.assertEqual(
+                    greeting_call[greeting_call.index("--manual-takeover") + 1],
+                    "true",
+                )
+                stage_call = store.calls[1]
+                self.assertEqual(
+                    stage_call[stage_call.index("--stage") + 1],
+                    "waiting_application_status",
+                )
+                self.assertEqual(
+                    stage_call[stage_call.index("--manual-takeover") + 1],
+                    "false",
+                )
+                self.assertNotIn("--followup-count", stage_call)
                 self.assertNotIn(
                     "气象学",
                     [argument for call in store.calls for argument in call],
@@ -1033,7 +1068,7 @@ class CampaignRunnerTests(unittest.TestCase):
             majors=("人工智能",),
             major_aliases={},
         )
-        self.messages = ("知识库一", "知识库二", "知识库三")
+        self.messages = ("知识库一", "知识库二")
         self.now = lambda: datetime(2026, 7, 23, 10, 0, tzinfo=SHANGHAI)
         self.delays = []
 
@@ -1185,7 +1220,7 @@ class CampaignRunnerTests(unittest.TestCase):
         self.assertEqual([item[0] for item in store.events], ["allowed"])
         self.assertEqual([item[0] for item in store.states], ["allowed"])
         self.assertEqual([item[0] for item in boss.sequence_calls], ["allowed"])
-        self.assertEqual(len(boss.sent), 3)
+        self.assertEqual(len(boss.sent), 2)
         self.assertEqual(boss.sent, list(self.messages))
         self.assertTrue(
             blocked_ids.isdisjoint(item[0] for item in boss.sequence_calls)
@@ -1233,7 +1268,7 @@ class CampaignRunnerTests(unittest.TestCase):
 
         self.assertEqual(store.count, 1)
 
-    def test_sends_only_the_three_knowledge_base_messages_in_order(self):
+    def test_sends_only_the_two_knowledge_base_messages_in_order(self):
         good = candidate(geek_id="good", name="合格同学")
         boss = FakeBoss([[good]])
         store = FakeStore()
@@ -1244,7 +1279,7 @@ class CampaignRunnerTests(unittest.TestCase):
         self.assertEqual(boss.sent, list(self.messages))
         self.assertEqual(len(boss.sequence_calls), 1)
         self.assertEqual(boss.chat_calls, [])
-        self.assertEqual(store.states[0][1], "waiting_resume")
+        self.assertEqual(store.states[0][1], "waiting_application_status")
         self.assertEqual(self.delays, [1.25])
 
     def test_keeps_unprocessed_candidates_available_after_one_greeting(self):
@@ -1292,6 +1327,39 @@ class CampaignRunnerTests(unittest.TestCase):
         self.assertEqual(boss.sent, ["知识库一"])
         self.assertEqual(store.count, 1)
         self.assertEqual(store.states, [])
+
+    def test_first_message_failure_keeps_greeted_without_advancing_stage(self):
+        good = candidate(geek_id="good", name="合格同学")
+        boss = FakeBoss([[good]])
+        boss.fail_send_at = 0
+        store = FakeStore()
+
+        with self.assertRaises(CampaignError):
+            self.runner(boss, store, target=1).run()
+
+        self.assertEqual(boss.sent, [])
+        self.assertEqual(store.count, 1)
+        self.assertEqual(store.states, [])
+
+    def test_sequence_result_failures_keep_greeted_without_advancing_stage(self):
+        for message in (
+            "boss send-sequence --json 返回了无效 JSON",
+            "两条知识库消息未全部验证",
+        ):
+            with self.subTest(message=message):
+                good = candidate(geek_id="good", name="合格同学")
+                boss = FakeBoss([[good]])
+                boss.sequence_error = CampaignError(message)
+                store = FakeStore()
+
+                with self.assertRaisesRegex(CampaignError, message):
+                    self.runner(boss, store, target=1).run()
+
+                self.assertEqual(store.count, 1)
+                self.assertEqual(store.events[0][0], "good")
+                self.assertIn("good", store.deduped)
+                self.assertEqual(store.states, [])
+                self.assertEqual(boss.sent, [])
 
     def test_unconfirmed_greet_skips_candidate_and_continues(self):
         failed = candidate(geek_id="failed", name="未确认候选人")

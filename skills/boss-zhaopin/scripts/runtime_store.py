@@ -232,7 +232,7 @@ class RuntimeStore:
               AND last_contact_at <= ?
               AND expires_at > ?
               AND (
-                    (stage = 'waiting_application_status' AND followup_count < ?)
+                    (stage = 'waiting_application_status' AND followup_count <= ?)
                  OR (stage != 'waiting_application_status' AND followup_count < ?)
               )
             ORDER BY last_contact_at, candidate_id
@@ -341,6 +341,7 @@ class RuntimeStore:
         major: str,
         degree: str,
         grad_year: int,
+        manual_takeover: bool = False,
     ) -> None:
         greeted = _coerce_datetime(greeted_at)
         greeted_iso = greeted.isoformat()
@@ -359,8 +360,8 @@ class RuntimeStore:
                 """
                 INSERT INTO candidates(
                     candidate_id, display_name, stage, school, major, degree,
-                    grad_year, last_contact_at, updated_at, expires_at
-                ) VALUES (?, ?, 'greeted', ?, ?, ?, ?, ?, ?, ?)
+                    grad_year, last_contact_at, manual_takeover, updated_at, expires_at
+                ) VALUES (?, ?, 'greeted', ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(candidate_id) DO UPDATE SET
                     display_name=excluded.display_name,
                     stage='greeted',
@@ -369,7 +370,7 @@ class RuntimeStore:
                     degree=excluded.degree,
                     grad_year=excluded.grad_year,
                     last_contact_at=excluded.last_contact_at,
-                    manual_takeover=0,
+                    manual_takeover=excluded.manual_takeover,
                     updated_at=excluded.updated_at,
                     expires_at=excluded.expires_at
                 """,
@@ -381,6 +382,7 @@ class RuntimeStore:
                     degree,
                     grad_year,
                     greeted_iso,
+                    int(manual_takeover),
                     greeted_iso,
                     expires,
                 ),
@@ -678,6 +680,7 @@ def build_parser() -> argparse.ArgumentParser:
     greeting.add_argument("--major", required=True)
     greeting.add_argument("--degree", required=True)
     greeting.add_argument("--grad-year", type=int, required=True)
+    greeting.add_argument("--manual-takeover", type=_parse_bool, default=False)
 
     decision = sub.add_parser("evaluate-transfer")
     decision.add_argument(
@@ -756,6 +759,7 @@ def main() -> int:
                 major=args.major,
                 degree=args.degree,
                 grad_year=args.grad_year,
+                manual_takeover=args.manual_takeover,
             )
             _print_json({"completed": True})
         elif args.command == "evaluate-transfer":

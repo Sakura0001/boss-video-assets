@@ -102,6 +102,32 @@ class RuntimeStoreTest(unittest.TestCase):
         due = self.store.due_followups(now)
         self.assertEqual([row["candidate_id"] for row in due], ["due"])
 
+    def test_waiting_application_status_exposes_two_questions_then_terminal_item(self):
+        for count in (0, 1, 2):
+            self.store.upsert_candidate(
+                candidate_id=f"application-{count}",
+                display_name=f"application-{count}",
+                stage="waiting_application_status",
+                now=at(1),
+                last_contact_at=at(1),
+                followup_count=count,
+            )
+
+        due = self.store.due_followups(at(12))
+
+        self.assertEqual(
+            [row["candidate_id"] for row in due],
+            ["application-0", "application-1", "application-2"],
+        )
+        updated = self.store.mark_followup_sent(
+            "application-1", variant=2, at=at(12)
+        )
+        self.assertEqual(updated["followup_count"], 2)
+        with self.assertRaisesRegex(ValueError, "follow-up limit reached"):
+            self.store.mark_followup_sent(
+                "application-1", variant=2, at=at(13)
+            )
+
     def test_followup_sent_increments_count_and_rotates_variant(self):
         self.store.upsert_candidate(
             candidate_id="candidate-1",
@@ -237,8 +263,41 @@ class RuntimeStoreTest(unittest.TestCase):
         self.assertTrue(self.store.is_deduped("candidate-1", at(9)))
         candidate = self.store.get_candidate("candidate-1")
         self.assertEqual(candidate["stage"], "greeted")
+        self.assertEqual(candidate["manual_takeover"], 0)
         self.assertEqual(candidate["school"], "浙江大学")
         self.assertEqual(candidate["last_contact_at"], at(8).isoformat())
+
+    def test_complete_greeting_can_hold_partial_sequence_for_manual_recovery(self):
+        self.store.complete_greeting(
+            candidate_id="candidate-held",
+            display_name="张同学",
+            greeted_at=at(8),
+            job="ai应用研发工程师",
+            school="浙江大学",
+            major="人工智能",
+            degree="博士",
+            grad_year=2027,
+            manual_takeover=True,
+        )
+
+        held = self.store.get_candidate("candidate-held")
+        self.assertEqual(held["stage"], "greeted")
+        self.assertEqual(held["manual_takeover"], 1)
+        self.assertEqual(self.store.due_followups(at(15)), [])
+
+        released = self.store.upsert_candidate(
+            candidate_id="candidate-held",
+            display_name="张同学",
+            stage="waiting_application_status",
+            now=at(9),
+            last_contact_at=at(9),
+            manual_takeover=False,
+        )
+        self.assertEqual(released["manual_takeover"], 0)
+        self.assertEqual(
+            [row["candidate_id"] for row in self.store.due_followups(at(15))],
+            ["candidate-held"],
+        )
 
     def test_complete_greeting_reuses_an_expired_dedupe_row(self):
         self.store._db().execute(
