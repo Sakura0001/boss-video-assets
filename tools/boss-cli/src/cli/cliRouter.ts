@@ -169,7 +169,7 @@ function printHelp(): void {
       仅发送文本消息（等价于在当前会话输入框发送后回车）
       --request-resume：发送后延迟片刻自动执行「求简历」操作
   boss send-sequence <姓名> --job <岗位> --messages-json <JSON数组> --json
-      在一次精确会话中依次发送并验证两条消息；供 Python 主动招呼执行器调用
+      在一次精确会话中依次发送并验证三条消息；供 Python 主动招呼执行器调用
   boss positions
       读取当前职位列表（含开放/待开放/已关闭状态）
   boss jd <name>

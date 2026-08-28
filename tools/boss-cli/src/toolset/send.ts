@@ -21,9 +21,9 @@ export type SendChatMessageOptions = {
 
 const SEQUENCE_MESSAGE_GAP_MS = { min: 1_000, max: 2_000 } as const;
 
-export function validateMessageSequence(messages: string[]): [string, string] {
-  if (messages.length !== 2) {
-    throw new Error(`消息序列必须恰好两条，当前为 ${messages.length} 条。`);
+export function validateMessageSequence(messages: string[]): [string, string, string] {
+  if (messages.length !== 3) {
+    throw new Error(`消息序列必须恰好三条，当前为 ${messages.length} 条。`);
   }
   const normalized = messages.map((message) => message.trim());
   if (normalized.some((message) => !message)) {
@@ -32,7 +32,7 @@ export function validateMessageSequence(messages: string[]): [string, string] {
   if (new Set(normalized).size !== normalized.length) {
     throw new Error('消息序列中的消息不能重复。');
   }
-  return normalized as [string, string];
+  return normalized as [string, string, string];
 }
 
 async function sendTextOnCurrentPage(

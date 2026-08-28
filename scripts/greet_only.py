@@ -28,6 +28,7 @@ MAX_CANDIDATE_DELAY_SECONDS = 2.0
 REQUIRED_MESSAGE_HEADINGS = (
     "技术与岗位介绍",
     "匹配与转投提示",
+    "投递方式与流程提示",
 )
 BLOCKED_EXPECTATION_KEYWORDS = (
     "算法",
@@ -176,7 +177,7 @@ def _extract_inline_code_after_heading(markdown: str, heading: str) -> str:
     return message
 
 
-def load_greeting_messages(path: Path) -> Tuple[str, str]:
+def load_greeting_messages(path: Path) -> Tuple[str, str, str]:
     try:
         markdown = path.read_text(encoding="utf-8")
     except OSError as exc:
@@ -185,8 +186,8 @@ def load_greeting_messages(path: Path) -> Tuple[str, str]:
         _extract_inline_code_after_heading(markdown, heading)
         for heading in REQUIRED_MESSAGE_HEADINGS
     )
-    if len(messages) != 2:
-        raise GreetingKnowledgeBaseError("知识库必须提供两条主动招呼消息")
+    if len(messages) != 3:
+        raise GreetingKnowledgeBaseError("知识库必须提供三条主动招呼消息")
     return messages  # type: ignore[return-value]
 
 
@@ -665,7 +666,7 @@ class BossCli:
         self,
         candidate: Candidate,
         job: str,
-        messages: Tuple[str, str],
+        messages: Tuple[str, str, str],
     ) -> None:
         chat_job = self._chat_job_name(job)
         raw = self._run(
@@ -689,8 +690,8 @@ class BossCli:
             raise CampaignError("消息序列结果候选人姓名不匹配")
         if chat_job not in str(payload.get("job") or ""):
             raise CampaignError("消息序列结果岗位不匹配")
-        if payload.get("messagesVerified") != 2:
-            raise CampaignError("两条知识库消息未全部验证")
+        if payload.get("messagesVerified") != 3:
+            raise CampaignError("三条知识库消息未全部验证")
 
 
 class RuntimeStoreCli:
@@ -808,7 +809,7 @@ class CampaignRunner:
         boss,
         store,
         policy: EligibilityPolicy,
-        messages: Tuple[str, str],
+        messages: Tuple[str, str, str],
         job: Optional[str],
         target: int,
         max_scans: int,
@@ -824,8 +825,8 @@ class CampaignRunner:
             raise CampaignError(
                 f"检查候选人上限必须在 1 到 {MAX_SCAN_LIMIT} 之间"
             )
-        if len(messages) != 2:
-            raise GreetingKnowledgeBaseError("必须从知识库读取到两条消息")
+        if len(messages) != 3:
+            raise GreetingKnowledgeBaseError("必须从知识库读取到三条消息")
         self.boss = boss
         self.store = store
         self.policy = policy
@@ -1109,7 +1110,7 @@ def _repository_root() -> Path:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "一键登录 Boss，使用当前默认岗位执行主动打招呼和知识库两条消息"
+            "一键登录 Boss，使用当前默认岗位执行主动打招呼和知识库三条消息"
         )
     )
     parser.add_argument(

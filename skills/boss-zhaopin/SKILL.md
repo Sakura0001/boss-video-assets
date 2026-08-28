@@ -28,7 +28,7 @@ Do not update the CLI automatically. A locally patched CLI may be in use; report
 
 Before replying to any inbound chat or greeting any recommendation, confirm every field below from the visible profile:
 
-- 先移除求职期望中的全部空白并转为小写，再对固定硬编码列表做子串匹配；固定列表仅为九项：算法、通信、硬件、前端、unity、电气、数据、产品、分析。命中时内部原因 `expectation_blocked`，不回复、不打招呼、不发送后续两条消息，完整求职期望不得写入本地状态或 Git。为空或未命中时，继续毕业年份、学历、学校、专业和去重门槛。
+- 先移除求职期望中的全部空白并转为小写，再对固定硬编码列表做子串匹配；固定列表仅为九项：算法、通信、硬件、前端、unity、电气、数据、产品、分析。命中时内部原因 `expectation_blocked`，不回复、不打招呼、不发送后续三条消息，完整求职期望不得写入本地状态或 Git。为空或未命中时，继续毕业年份、学历、学校、专业和去重门槛。
 - 2027 graduation year.
 - Bachelor or postgraduate degree.
 - At least one school in the visible education history is in
@@ -59,7 +59,7 @@ No technical experience is required. Detailed qualification, the one-run major e
 3. 按 `stage` 与 `followup_count` 精确匹配 `references/followups.md`：
    `waiting_application_status` 只使用两条投递状态追问，不得选用历史通用跟进；
    仅 `manual_takeover = 0` 的历史 `greeted` 行或 `waiting_resume` 行使用历史通用分支；
-   两条消息未完整验证而保留的 `greeted` 行必须暂停自动处理并人工恢复。
+   三条消息未完整验证而保留的 `greeted` 行必须暂停自动处理并人工恢复。
 4. Record the send only after `boss send` succeeds.
 
 ### New candidates
@@ -68,7 +68,7 @@ Choose exactly one branch.
 
 #### A. 确定性执行器分支
 
-Use `scripts/greet_only.py` for the explicit one-run proactive greeting. `--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。未提供 --job 时使用 Boss 推荐页当前默认岗位，不把 `agent.yaml` 的 `default_job_keyword` 当作所选岗位，也不强制覆盖岗位。执行锁内、推荐前自动运行 runtime `init`、runtime `purge --as-of <Shanghai ISO>`、`boss help` 和 `boss list --unread`。`boss list --unread` 仅用于验证登录，不处理或回复未读聊天，也不处理到期跟进。如需登录，runner 自动打开并轮询登录；登录后获取首个推荐批次。使用 runner 时不得手工运行这些预检命令。runner 内部完成计数、推荐、资格筛选、去重、打招呼、精确会话/两条消息及状态记录。两条固定纯文本均读回验证成功后，状态设为 `waiting_application_status`；主动路径不请求附件简历。该开关及其配置不持久化；招呼、去重和候选人阶段仍按运行时规则记录。启动 runner 后不得执行手工流程分支或另行调用 `boss greet`。
+Use `scripts/greet_only.py` for the explicit one-run proactive greeting. `--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。未提供 --job 时使用 Boss 推荐页当前默认岗位，不把 `agent.yaml` 的 `default_job_keyword` 当作所选岗位，也不强制覆盖岗位。执行锁内、推荐前自动运行 runtime `init`、runtime `purge --as-of <Shanghai ISO>`、`boss help` 和 `boss list --unread`。`boss list --unread` 仅用于验证登录，不处理或回复未读聊天，也不处理到期跟进。如需登录，runner 自动打开并轮询登录；登录后获取首个推荐批次。使用 runner 时不得手工运行这些预检命令。runner 内部完成计数、推荐、资格筛选、去重、打招呼、精确会话/三条消息及状态记录。三条固定纯文本均读回验证成功后，状态设为 `waiting_application_status`；主动路径不请求附件简历。该开关及其配置不持久化；招呼、去重和候选人阶段仍按运行时规则记录。启动 runner 后不得执行手工流程分支或另行调用 `boss greet`。
 
 #### B. 手工流程分支
 

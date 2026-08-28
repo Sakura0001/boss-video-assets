@@ -60,11 +60,11 @@ py -3 "$SkillRoot\scripts\runtime_store.py" due-followups --as-of $NowIso
 该动作，以免中断后出现计数和去重不一致。
 
 确定性 runner 调用 `greeting-complete` 时同时写入 `manual_takeover = 1`，让
-两条消息尚未完整验证的 `greeted` 行不进入自动到期跟进。两条均验证成功后，
+三条消息尚未完整验证的 `greeted` 行不进入自动到期跟进。三条均验证成功后，
 更新为 `waiting_application_status` 并写入 `manual_takeover = 0`。若中途失败，
 保留 `greeted`、长期去重和抑制标记，等待人工精确会话恢复。
 
-新的主动路径在两条固定纯文本均发送并读回验证成功后，再把候选人阶段更新为
+新的主动路径在三条固定纯文本均发送并读回验证成功后，再把候选人阶段更新为
 `waiting_application_status`。任一条发送或验证失败时保留 `greeted`，不得提前
 进入投递状态跟进。历史 `waiting_resume` 行和候选人主动提交附件简历的独立流程保持兼容。
 `due-followups` 会在第二次投递状态追问后再次满六小时且仍无回复时返回

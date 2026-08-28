@@ -91,7 +91,7 @@ Notes:
 - `preview` may consume online resume view quota.
 - `greet` consumes greeting quota.
 - `deep-search` depends on Boss UI routes and may fail if the platform changes.
-- After `boss greet`, immediately open the chat and follow the required proactive sequence in `auto_greet.md`. The deterministic runner sends only the two fixed texts from `greetings.md` and does not request an attachment resume.
+- After `boss greet`, immediately open the chat and follow the required proactive sequence in `auto_greet.md`. The deterministic runner sends only the three fixed texts from `greetings.md` and does not request an attachment resume.
 
 ## Deterministic Proactive Runner
 
@@ -107,7 +107,7 @@ On Windows PowerShell, run:
 py -3 .\scripts\greet_only.py --skip-major-filter --target 150 --max-scans 1500
 ```
 
-`--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。未提供 --job 时使用 Boss 推荐页当前默认岗位，不把 `agent.yaml` 的 `default_job_keyword` 当作所选岗位，也不强制覆盖岗位。不带该参数时，执行器保持默认专业门槛。该 runner 的自动预检、登录验证边界、两条固定纯文本、无附件请求和禁止手工预检要求见 `auto_greet.md`。
+`--skip-major-filter` 属于 `scripts/greet_only.py` 的参数，不得传给 `boss greet`。未提供 --job 时使用 Boss 推荐页当前默认岗位，不把 `agent.yaml` 的 `default_job_keyword` 当作所选岗位，也不强制覆盖岗位。不带该参数时，执行器保持默认专业门槛。该 runner 的自动预检、登录验证边界、三条固定纯文本、无附件请求和禁止手工预检要求见 `auto_greet.md`。
 
 ## Reliability Practices
 

@@ -160,8 +160,9 @@ class GreetingKnowledgeBaseTests(unittest.TestCase):
             / "greetings.md"
         )
         expected = (
-            "我们团队正在探索AI时代的下一代智能应用，围绕大语言模型（LLM）、AI Agent、RAG、知识增强、智能工作流和多Agent协同，打造能理解任务、主动分析并自动执行的企业级应用。目前已覆盖智能助手、自动化决策、智能分析、企业知识管理和AIOps等场景，加入后可参与从模型应用设计、Agent架构搭建到生产落地的完整流程，积累AI时代的核心技术能力。",
-            "我看了一下你的背景和在线简历，和我们AI应用研发方向有一定匹配度。欢迎你了解一下我们的技术方向和发展机会。我们这边相对wlb一些，自盈利部门，年终奖可以保证，日常加班可以随意申报，也不会强制要求来。部门整体氛围好，新老员工无断层现象，跳槽到外面的员工都有很大幅度的涨薪，不需要担心个人竞争力。如果你现在已投递的话，也开始对比下现在投递的部门，看是否想转投，现在还可以转，后面正式进流程就没办法在转投了",
+            "我们是华为GaussDB国产数据库的研发团队，当前主要进攻海外市场，市场仍有几十亿的增量空间，数据库业务在今年6月在公司向全体董事进行汇报，未来前景巨大，感兴趣可以投递我们，今年目标hc相比去年扩充一倍，招聘要求放低，有任何问题可以发消息了解一下。",
+            "我看了一下你的背景和在线简历，和我们的研发方向有一定匹配度，我们主要是有三种岗位，内核开发，需要较高的技术能力，部门允许零基础进来学习，参与Gaussdb的核心技术研发工作，此外还有智能agent开发管控工作，与传统开发相同，技术栈与互联网公司一致，我们这边相对wlb一些，自盈利部门，年终奖可以保证，日常加班可以随意申报，也不会强制要求来。部门整体氛围好，新老员工无断层现象，跳槽到外面的员工都有很大幅度的涨薪，不需要担心个人竞争力。",
+            "在华为，投递一个好的部门远好于投递一个非常热门的业务，部门没有输出到销售的情况，外界风评很好，请同学慎重考虑投递的部门，当前如果还没进入简历筛选环节或者投递的不是云软件研发部，还可以撤销原投递转投我们部门，投递方式如下，AI应用工程师投递：校园招聘->实习生职位->AI应用工程师->AI技术应用/AI系统软件->选择工作地点->部门意向选择“ICT BG” “云软件研发部” 或者 软件开发工程师投递：校园招聘->实习生职位->软件开发工程师->通用软件/数据库->选择工作地点->部门意向选择“ICT BG” “云软件研发部” 两个岗位仅在笔试环节不同，可以选择自己擅长的笔试方向投递，投递后我会发你一些笔试/测评攻略。并加我微信后续跟踪流程。",
         )
 
         messages = load_greeting_messages(path)
@@ -179,13 +180,17 @@ class GreetingKnowledgeBaseTests(unittest.TestCase):
 ### 匹配与转投提示
 
 `第二条原文`
+
+### 投递方式与流程提示
+
+`第三条原文`
 """
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "greetings.md"
             path.write_text(content, encoding="utf-8")
             self.assertEqual(
                 load_greeting_messages(path),
-                ("第一条原文", "第二条原文"),
+                ("第一条原文", "第二条原文", "第三条原文"),
             )
 
     def test_missing_message_fails_instead_of_generating_text(self):
@@ -711,7 +716,7 @@ class BossCliTests(unittest.TestCase):
             [
                 '{"job":"ai应用研发工程师","candidates":[]}',
                 '{"job":"ai应用研发工程师","name":"候选人","geekId":"stable-id"}',
-                '{"job":"ai应用研发工程师","name":"候选人","messagesVerified":2}',
+                '{"job":"ai应用研发工程师","name":"候选人","messagesVerified":3}',
             ]
         )
 
@@ -720,7 +725,7 @@ class BossCliTests(unittest.TestCase):
         cli.send_sequence(
             item,
             "ai应用研发工程师",
-            ("知识库一", "知识库二"),
+            ("知识库一", "知识库二", "知识库三"),
         )
 
         self.assertEqual(cli.calls[0][-2:], ["--json", "--automation"])
@@ -777,14 +782,14 @@ class BossCliTests(unittest.TestCase):
         cli = self.CapturingBossCli(
             [
                 '{"job":"ai应用研发工程师","name":"候选人",'
-                '"messagesVerified":2}'
+                '"messagesVerified":3}'
             ]
         )
 
         cli.send_sequence(
             item,
             "ai应用研发工程师 _ 上海 25-30K",
-            ("知识库一", "知识库二"),
+            ("知识库一", "知识库二", "知识库三"),
         )
 
         job_index = cli.calls[0].index("--job")
@@ -795,19 +800,27 @@ class BossCliTests(unittest.TestCase):
         cli = self.CapturingBossCli(["not-json"])
 
         with self.assertRaisesRegex(CampaignError, "无效 JSON"):
-            cli.send_sequence(item, "ai应用研发工程师", ("知识库一", "知识库二"))
+            cli.send_sequence(
+                item,
+                "ai应用研发工程师",
+                ("知识库一", "知识库二", "知识库三"),
+            )
 
     def test_send_sequence_rejects_incomplete_verification(self):
         item = candidate(geek_id="stable-id", name="候选人")
         cli = self.CapturingBossCli(
             [
                 '{"job":"ai应用研发工程师","name":"候选人",'
-                '"messagesVerified":1}'
+                '"messagesVerified":2}'
             ]
         )
 
-        with self.assertRaisesRegex(CampaignError, "两条知识库消息未全部验证"):
-            cli.send_sequence(item, "ai应用研发工程师", ("知识库一", "知识库二"))
+        with self.assertRaisesRegex(CampaignError, "三条知识库消息未全部验证"):
+            cli.send_sequence(
+                item,
+                "ai应用研发工程师",
+                ("知识库一", "知识库二", "知识库三"),
+            )
 
     def test_login_is_skipped_when_session_is_ready(self):
         cli = self.CapturingBossCli(
@@ -918,7 +931,7 @@ class BossCliTests(unittest.TestCase):
                 self.assertEqual(result, 0)
                 payload = json.loads(output.getvalue())
                 self.assertEqual(payload["majorFilterMode"], expected_mode)
-                self.assertEqual(payload["messageCount"], 2)
+                self.assertEqual(payload["messageCount"], 3)
 
     def test_validate_only_skips_live_preflight(self):
         with patch("scripts.greet_only.BossCli") as boss_class, patch(
@@ -1068,7 +1081,7 @@ class CampaignRunnerTests(unittest.TestCase):
             majors=("人工智能",),
             major_aliases={},
         )
-        self.messages = ("知识库一", "知识库二")
+        self.messages = ("知识库一", "知识库二", "知识库三")
         self.now = lambda: datetime(2026, 7, 23, 10, 0, tzinfo=SHANGHAI)
         self.delays = []
 
@@ -1220,7 +1233,7 @@ class CampaignRunnerTests(unittest.TestCase):
         self.assertEqual([item[0] for item in store.events], ["allowed"])
         self.assertEqual([item[0] for item in store.states], ["allowed"])
         self.assertEqual([item[0] for item in boss.sequence_calls], ["allowed"])
-        self.assertEqual(len(boss.sent), 2)
+        self.assertEqual(len(boss.sent), 3)
         self.assertEqual(boss.sent, list(self.messages))
         self.assertTrue(
             blocked_ids.isdisjoint(item[0] for item in boss.sequence_calls)
@@ -1268,7 +1281,7 @@ class CampaignRunnerTests(unittest.TestCase):
 
         self.assertEqual(store.count, 1)
 
-    def test_sends_only_the_two_knowledge_base_messages_in_order(self):
+    def test_sends_only_the_three_knowledge_base_messages_in_order(self):
         good = candidate(geek_id="good", name="合格同学")
         boss = FakeBoss([[good]])
         store = FakeStore()
@@ -1315,16 +1328,16 @@ class CampaignRunnerTests(unittest.TestCase):
         self.assertEqual(result.final_count, 150)
         self.assertEqual(boss.recommend_calls, [])
 
-    def test_send_failure_stops_before_later_messages(self):
+    def test_third_message_failure_keeps_greeted_without_advancing_stage(self):
         good = candidate(geek_id="good", name="合格同学")
         boss = FakeBoss([[good]])
-        boss.fail_send_at = 1
+        boss.fail_send_at = 2
         store = FakeStore()
 
         with self.assertRaises(CampaignError):
             self.runner(boss, store, target=1).run()
 
-        self.assertEqual(boss.sent, ["知识库一"])
+        self.assertEqual(boss.sent, ["知识库一", "知识库二"])
         self.assertEqual(store.count, 1)
         self.assertEqual(store.states, [])
 
@@ -1344,7 +1357,7 @@ class CampaignRunnerTests(unittest.TestCase):
     def test_sequence_result_failures_keep_greeted_without_advancing_stage(self):
         for message in (
             "boss send-sequence --json 返回了无效 JSON",
-            "两条知识库消息未全部验证",
+            "三条知识库消息未全部验证",
         ):
             with self.subTest(message=message):
                 good = candidate(geek_id="good", name="合格同学")
