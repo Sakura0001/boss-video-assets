@@ -1328,6 +1328,17 @@ class CampaignRunnerTests(unittest.TestCase):
         self.assertEqual(result.final_count, 150)
         self.assertEqual(boss.recommend_calls, [])
 
+    def test_runs_outside_previous_send_window(self):
+        self.now = lambda: datetime(2026, 9, 6, 22, 0, tzinfo=SHANGHAI)
+        good = candidate(geek_id="after-hours", name="夜间候选人")
+        boss = FakeBoss([[good]])
+        store = FakeStore()
+
+        result = self.runner(boss, store, target=1).run()
+
+        self.assertEqual(result.final_count, 1)
+        self.assertEqual(len(boss.sequence_calls), 1)
+
     def test_third_message_failure_keeps_greeted_without_advancing_stage(self):
         good = candidate(geek_id="good", name="合格同学")
         boss = FakeBoss([[good]])

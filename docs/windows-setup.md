@@ -143,7 +143,6 @@ py -3 .\scripts\greet_only.py --validate-only
 - 保持 Boss 专用浏览器、PowerShell、电脑和网络正常运行。
 - 不要同时启动第二个脚本、其他 Boss 自动化或在另一台电脑运行。
 - `Ctrl+C` 可安全停止；下次会从本机已有计数继续。
-- 只在 Asia/Shanghai 09:00–21:00 发送。
 - 验证码、平台风控、登录异常、岗位意外变化或消息验证失败会立即停止。
 - 平台点击“打招呼”产生的默认开场白由 Boss 账号配置决定；随后三条消息
   严格读取 `references\greetings.md`。

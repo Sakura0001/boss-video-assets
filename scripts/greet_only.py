@@ -846,21 +846,14 @@ class CampaignRunner:
             raise CampaignError("当前时间必须包含时区")
         return value.astimezone(SHANGHAI)
 
-    def _assert_send_window(self) -> datetime:
-        current = self._now()
-        if current.hour < 9 or current.hour >= 21:
-            raise CampaignError("当前不在 Asia/Shanghai 09:00–21:00 招聘时段")
-        return current
-
     def _send_messages(self, candidate: Candidate, job: str) -> None:
-        self._assert_send_window()
         self.boss.send_sequence(candidate, job, self.messages)
 
     def run(
         self,
         initial_batch: Optional[RecommendationBatch] = None,
     ) -> CampaignResult:
-        current = self._assert_send_window()
+        current = self._now()
         date = current.date().isoformat()
         initial_count = self.store.greeting_count(date)
         if initial_count >= self.target:
@@ -991,7 +984,7 @@ class CampaignRunner:
                 raise CampaignError("候选人随机等待时间超出 1–2 秒安全范围")
             self.sleep(candidate_delay)
             workflow_started = self.monotonic()
-            action_time = self._assert_send_window().isoformat()
+            action_time = self._now().isoformat()
             try:
                 self.boss.greet(eligible_candidate, active_job)
             except GreetNotConfirmedError:
